@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>termux.tongatron.org</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(160deg, #0d1117 0%, #161b22 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e6edf3;
+    padding: 24px 0;
+  }
+  .card {
+    width: 100%; max-width: 640px; margin: 24px; padding: 32px 36px; border-radius: 16px;
+    background: #161b22; border: 1px solid #30363d; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: #8b949e; margin: 0 0 20px; font-size: .95rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: .8rem;
+    background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb55;
+    padding: 4px 10px; border-radius: 999px; margin-bottom: 18px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+  .dot.stale { background: #d29922; box-shadow: 0 0 8px #d29922; }
+  h2 {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .06em;
+    color: #58a6ff; margin: 28px 0 10px; font-weight: 600;
+  }
+  h2:first-of-type { margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  td { padding: 7px 0; border-bottom: 1px solid #21262d; vertical-align: top; }
+  td:first-child { color: #8b949e; width: 42%; }
+  td:last-child { text-align: right; font-family: ui-monospace, SFMono-Regular, monospace; }
+  .svc-name { color: #e6edf3; font-weight: 500; }
+  .tag {
+    display: inline-block; font-size: .68rem; font-family: ui-monospace, SFMono-Regular, monospace;
+    padding: 1px 6px; border-radius: 4px; margin-top: 4px;
+  }
+  .tag.public { background: #3fb95022; color: #3fb950; border: 1px solid #3fb95055; }
+  .tag.none   { background: #3fb95022; color: #3fb950; border: 1px solid #3fb95055; }
+  .tag.use    { background: #f8514922; color: #f85149; border: 1px solid #f8514955; }
+  .tag.off    { background: #6e768122; color: #6e7681; border: 1px solid #6e768155; }
+  .h2-note { color: #8b949e; font-size: .82rem; margin: -2px 0 12px; }
+  .bar { height: 6px; border-radius: 3px; background: #21262d; overflow: hidden; margin-top: 6px; }
+  .bar > i { display: block; height: 100%; background: #1f6feb; }
+  .cmd {
+    margin: 0 0 12px; padding: 10px 14px; border-radius: 8px; overflow-x: auto;
+    background: #0d1117; border: 1px solid #30363d;
+    font-family: ui-monospace, SFMono-Regular, monospace; font-size: .82rem; color: #7ee787;
+  }
+  .footer { margin-top: 24px; font-size: .75rem; color: #6e7681; text-align: center; }
+  .links { margin: -6px 0 20px; }
+  .links a {
+    display: inline-flex; align-items: center; gap: 6px; font-size: .82rem;
+    color: #58a6ff; text-decoration: none;
+  }
+  .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="badge"><span class="dot" id="dot"></span> <span id="status">caricamento&hellip;</span></span>
+    <h1 id="title">Redmi 12 &middot; Termux</h1>
+    <p class="sub">Servito da un telefono Android, pubblicato via Cloudflare Tunnel.</p>
+
+    <p class="links"><a href="/guida/">&#128218; Guida: come hostare una pagina con Termux</a></p>
+
+    <table>
+      <tr><td>Host</td><td>termux.tongatron.org</td></tr>
+      <tr><td>Origine</td><td>Termux / python http.server</td></tr>
+      <tr><td>Tunnel</td><td>cloudflared (locale, su Termux)</td></tr>
+    </table>
+
+    <h2>Accesso SSH dal Mac</h2>
+    <p class="h2-note">Stessa rete Wi-Fi di casa:</p>
+    <pre class="cmd">ssh -p 8022 &lt;utente&gt;&#64;&lt;ip-del-telefono&gt;</pre>
+    <p class="h2-note">Da fuori casa, con Tailscale attivo su entrambi i lati:</p>
+    <pre class="cmd">ssh -p 8022 &lt;utente&gt;&#64;&lt;ip-tailscale-del-telefono&gt;</pre>
+
+    <h2>Info di sistema</h2>
+    <table id="sysinfo"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
+
+    <h2>Servizi</h2>
+    <table id="services"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
+
+    <h2>Pacchetti chiave</h2>
+    <table id="packages"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
+
+    <h2>Privacy &amp; dati</h2>
+    <p class="h2-note">Il server pubblica solo questa pagina statica. Nessuna delle voci sotto viene letta, richiesta o esposta da esso.</p>
+    <table>
+      <tr><td class="svc-name">Fotocamera</td><td><span class="tag none">non utilizzata</span></td></tr>
+      <tr><td class="svc-name">Microfono</td><td><span class="tag none">non utilizzato</span></td></tr>
+      <tr><td class="svc-name">Posizione (GPS)</td><td><span class="tag none">non utilizzata</span></td></tr>
+      <tr><td class="svc-name">Contatti</td><td><span class="tag none">non utilizzati</span></td></tr>
+      <tr><td class="svc-name">SMS / chiamate</td><td><span class="tag none">non utilizzati</span></td></tr>
+      <tr><td class="svc-name">File personali (foto, documenti)</td><td><span class="tag none">non esposti</span></td></tr>
+      <tr><td class="svc-name">Sensori (accelerometro, ecc.)</td><td><span class="tag none">non utilizzati</span></td></tr>
+      <tr><td class="svc-name">Indirizzi IP (LAN, Tailscale)</td><td><span class="tag use">pubblicati sopra, per SSH</span></td></tr>
+    </table>
+
+    <div class="footer">
+      tongatron.org &middot; raspi-admin fleet<br>
+      <span id="generated">&nbsp;</span>
+    </div>
+  </div>
+
+<script>
+const GB = 1024 ** 3;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function rows(el, items) {
+  document.getElementById(el).innerHTML = items
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`)
+    .join("");
+}
+
+function bar(used, total) {
+  const pct = total ? Math.round((used / total) * 100) : 0;
+  return `<div class="bar"><i style="width:${pct}%"></i></div>`;
+}
+
+async function refresh() {
+  let d;
+  try {
+    d = await (await fetch("info.json?t=" + Date.now(), { cache: "no-store" })).json();
+  } catch {
+    document.getElementById("status").textContent = "dati non disponibili";
+    document.getElementById("dot").classList.add("stale");
+    return;
+  }
+
+  const dev = d.device || {}, tx = d.termux || {}, mem = d.memory || {}, st = d.storage || {};
+  const name = `${dev.manufacturer || ""} ${dev.model || ""}`.trim();
+  document.getElementById("title").textContent = (name || "Telefono") + " · Termux";
+
+  // sysinfo.sh rigenera ogni 30s: oltre i 120s il dato e considerato fermo.
+  const age = (Date.now() - Date.parse(d.generated)) / 1000;
+  const stale = !(age < 120);
+  document.getElementById("dot").classList.toggle("stale", stale);
+  document.getElementById("status").textContent = stale ? "dati non aggiornati" : "online";
+  document.getElementById("generated").textContent =
+    "Aggiornato " + new Date(d.generated).toLocaleString("it-IT");
+
+  const b = d.battery;
+  rows("sysinfo", [
+    ["Dispositivo", esc(name)],
+    ["Android", esc(dev.android) + (dev.security_patch ? ` <span style="color:#6e7681">(patch ${esc(dev.security_patch)})</span>` : "")],
+    ["Kernel", esc(dev.kernel)],
+    ["Architettura", esc(dev.arch) + (dev.cpus ? ` &middot; ${dev.cpus} core` : "")],
+    ["Utente Termux", esc(tx.user)],
+    ["Uptime", esc(tx.uptime)],
+    ["Load average", esc(tx.load)],
+    ["Memoria", `${(mem.used_b / GB).toFixed(1)} / ${(mem.total_b / GB).toFixed(1)} GB` + bar(mem.used_b, mem.total_b)],
+    ["Storage", `${esc(st.used)} / ${esc(st.total)} (${esc(st.use_pct)})`],
+    ["Batteria", b ? `${esc(b.percentage)}% &middot; ${esc(b.status)}` : null],
+  ]);
+
+  const svc = d.services || {};
+  const on = v => v ? '<span class="tag public">attivo</span>' : '<span class="tag off">fermo</span>';
+  rows("services", [
+    ["SSH (porta 8022)", on(svc.sshd)],
+    ["Web server (porta 8080)", on(svc.webserver)],
+    ["Cloudflare Tunnel", on(svc.cloudflared)],
+    ["Loop fotocamera", on(svc.camera)],
+  ]);
+
+  rows("packages", Object.entries(d.packages || {}).map(([k, v]) => [k, esc(v)]));
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fotocamera &middot; termux.tongatron.org</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(160deg, #0d1117 0%, #161b22 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #e6edf3; padding: 24px 16px 48px;
+  }
+  .wrap { width: 100%; max-width: 1100px; margin: 0 auto; }
+  .back { color: #58a6ff; text-decoration: none; font-size: .85rem; }
+  .back:hover { text-decoration: underline; }
+  h1 { font-size: 1.6rem; margin: 14px 0 4px; }
+  .sub { color: #8b949e; margin: 0 0 18px; font-size: .95rem; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: .8rem;
+    background: #1f6feb22; color: #58a6ff; border: 1px solid #1f6feb55;
+    padding: 4px 10px; border-radius: 999px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 8px #3fb950; }
+  .dot.stale { background: #d29922; box-shadow: 0 0 8px #d29922; }
+  .warn {
+    margin: 16px 0 0; padding: 12px 14px; border-radius: 10px; font-size: .85rem;
+    background: #d2992214; border: 1px solid #d2992255; color: #e3b341;
+  }
+  .warn code { font-family: ui-monospace, SFMono-Regular, monospace; font-size: .8rem; }
+  .grid {
+    margin-top: 22px; display: grid; gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  figure {
+    margin: 0; border-radius: 10px; overflow: hidden;
+    background: #161b22; border: 1px solid #30363d;
+  }
+  figure.latest { border-color: #1f6feb; box-shadow: 0 0 0 1px #1f6feb55; }
+  figure img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #0d1117; }
+  figcaption {
+    padding: 7px 10px; font-size: .74rem; color: #8b949e;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  figcaption .n { color: #6e7681; }
+  .empty {
+    margin-top: 22px; padding: 28px; border-radius: 12px; text-align: center;
+    background: #161b22; border: 1px dashed #30363d; color: #8b949e; font-size: .9rem;
+  }
+  .footer { margin-top: 28px; font-size: .75rem; color: #6e7681; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="/">&larr; termux.tongatron.org</a>
+    <h1>Fotocamera frontale</h1>
+    <p class="sub">Uno scatto ogni <span id="interval">10</span> secondi. In pagina restano gli ultimi <span id="keep">30</span>.</p>
+    <span class="badge"><span class="dot" id="dot"></span> <span id="status">caricamento&hellip;</span></span>
+
+    <div id="warn" class="warn" hidden></div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" hidden></div>
+
+    <div class="footer">
+      Le immagini restano solo sul telefono, sostituite a rotazione.<br>
+      <span id="updated">&nbsp;</span>
+    </div>
+  </div>
+
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const $ = id => document.getElementById(id);
+
+async function refresh() {
+  let d;
+  try {
+    d = await (await fetch("shots.json?t=" + Date.now(), { cache: "no-store" })).json();
+  } catch {
+    $("status").textContent = "loop fotocamera non avviato";
+    $("dot").classList.add("stale");
+    $("grid").innerHTML = "";
+    $("empty").hidden = false;
+    $("empty").textContent = "Nessun manifest: lo script camera-loop.sh non e ancora in esecuzione sul telefono.";
+    return;
+  }
+
+  $("interval").textContent = d.interval_s ?? 10;
+  $("keep").textContent = d.keep ?? 30;
+
+  const shots = d.shots || [];
+  // Il loop riscrive il manifest a ogni giro: oltre 3 intervalli e fermo.
+  const age = (Date.now() - Date.parse(d.updated)) / 1000;
+  const stale = !(age < (d.interval_s || 10) * 3);
+  $("dot").classList.toggle("stale", stale);
+  $("status").textContent = stale
+    ? "loop fermo"
+    : `${shots.length} scatti · backend ${d.backend || "?"}`;
+  $("updated").textContent = "Ultimo aggiornamento " + new Date(d.updated).toLocaleString("it-IT");
+
+  if (d.last_error) {
+    $("warn").hidden = false;
+    $("warn").innerHTML = "Ultimo scatto non riuscito: <code>" + esc(d.last_error) + "</code>";
+  } else {
+    $("warn").hidden = true;
+  }
+
+  if (!shots.length) {
+    $("grid").innerHTML = "";
+    $("empty").hidden = false;
+    $("empty").textContent = "Ancora nessuno scatto disponibile.";
+    return;
+  }
+
+  $("empty").hidden = true;
+  $("grid").innerHTML = shots.map((s, i) => `
+    <figure${i === 0 ? ' class="latest"' : ""}>
+      <img src="${esc(s.file)}" alt="Scatto delle ${esc(s.ts)}" loading="lazy">
+      <figcaption><span>${esc(s.ts)}</span><span class="n">#${i + 1}</span></figcaption>
+    </figure>`).join("");
+}
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>

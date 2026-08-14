@@ -1,0 +1,16 @@
+# Impostazioni locali dell'ambiente di sviluppo
+.claude/
+
+# Dati generati e log del dispositivo
+info.json
+*.log
+
+# Credenziali Cloudflare e altri segreti
+*.pem
+*.key
+*.crt
+*.json
+
+# Note operative private: contengono indirizzi e dettagli della rete locale
+Termolux-android.md
+raspi4.md
