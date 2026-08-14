@@ -42,6 +42,29 @@ solo per amministrare il telefono da remoto.
 Le note operative con indirizzi e dettagli della rete locale restano escluse
 dal repository pubblico.
 
+## Workflow consigliato
+
+La repo è organizzata per separare il “cosa” dal “come”:
+
+| Percorso | Contenuto |
+| --- | --- |
+| [`docs/`](docs/) | how-to diviso per installazione, SSH, hosting, autostart e diagnosi |
+| [`scripts/`](scripts/) | comandi ripetibili per bootstrap, deploy, stato, log e restart |
+| [`config.example.env`](config.example.env) | configurazione SSH da copiare in `config.env` |
+| [`Makefile`](Makefile) | interfaccia breve per usare gli script dal computer |
+
+Dal Mac/PC il ciclo quotidiano diventa:
+
+```bash
+cp config.example.env config.env   # una sola volta: inserisci host e utente
+make check                          # controlla gli script
+make deploy                         # pubblica il sito su Termux
+make status                         # verifica i servizi
+make logs                           # legge il log del tunnel
+```
+
+Per il percorso completo, parti da [`docs/01-installazione.md`](docs/01-installazione.md).
+
 ## Avvio rapido: server locale
 
 In Termux:

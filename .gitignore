@@ -9,6 +9,7 @@ info.json
 *.pem
 *.key
 *.crt
+config.env
 *.json
 
 # Note operative private: contengono indirizzi e dettagli della rete locale
