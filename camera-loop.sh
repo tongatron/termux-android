@@ -1,45 +1,46 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Scatta una foto con la fotocamera frontale ogni INTERVAL secondi, tiene le
-# ultime KEEP e aggiorna il manifest letto da ~/www/camera/index.html.
+# Takes a front-camera photo every INTERVAL seconds, keeps the latest KEEP
+# images, and updates the manifest read by ~/www/camera/index.html.
 #
 #   setsid nohup ~/camera-loop.sh < /dev/null > ~/camera-loop.log 2>&1 & disown
-#   pkill -f camera-loop.sh    per fermarlo
+#   pkill -f camera-loop.sh    to stop it
 #
 # ---------------------------------------------------------------------------
-# DUE BACKEND, scelti automaticamente in quest'ordine.
+# TWO BACKENDS, selected automatically in this order.
 #
-# 1. "ipwebcam" (in uso) - l'app IP Webcam espone uno snapshot JPEG su
-#    /shot.jpg. Gira come foreground service, quindi Android le lascia la
-#    fotocamera anche a schermo spento: e l'unico modo per avere scatti 24/7.
+# 1. "ipwebcam" (used) - the IP Webcam app exposes a JPEG snapshot at
+#    /shot.jpg. It runs as a foreground service, so Android leaves the camera
+#    available with the screen off: the only practical way to capture 24/7.
 #
-#    ATTENZIONE: IP Webcam ascolta sull'interfaccia Wi-Fi, NON su loopback,
-#    quindi va contattata al'IP LAN del telefono. Quell'IP e assegnato via
-#    DHCP e cambia, e Android 15 impedisce a Termux di leggerlo (netlink e
-#    /proc/net negati da SELinux). Per questo lo script memorizza l'ultimo URL
-#    funzionante in ~/.camera-url e, quando smette di rispondere, ripercorre
-#    la stessa /24 per ritrovare la porta aperta e si riconfigura da solo.
+#    WARNING: IP Webcam listens on the Wi-Fi interface, NOT loopback, so it
+#    must be reached through the phone's LAN IP. That address comes from DHCP
+#    and can change; Android 15 also prevents Termux from reading it (netlink
+#    and /proc/net are blocked by SELinux). The script therefore stores the
+#    last working URL in ~/.camera-url and scans the same /24 when it stops
+#    responding, reconfiguring itself automatically.
 #
-# 2. "termux" - termux-camera-photo del pacchetto termux-api. NON funziona
-#    sulla build Termux del Play Store (TERMUX_VERSION=googleplay.*), che
-#    risponde "Termux:API is not yet available on Google Play". Serve Termux
-#    da F-Droid/GitHub piu l'app Termux:API, e anche cosi Android blocca la
-#    fotocamera alle app in background: scatti solo con Termux in primo piano.
+# 2. "termux" - termux-camera-photo from the termux-api package. It does NOT
+#    work on the Google Play Termux build (TERMUX_VERSION=googleplay.*), which
+#    returns "Termux:API is not yet available on Google Play". Use the
+#    F-Droid/GitHub Termux build plus the Termux:API app; even then Android
+#    blocks camera access for background apps, so capture works only with
+#    Termux in the foreground.
 # ---------------------------------------------------------------------------
 
 set -u
 
-INTERVAL=10          # secondi tra uno scatto e l'altro
-KEEP=30              # quante foto conservare
-CAMERA_ID=1          # backend termux: 0 = posteriore, 1 = frontale
-CAM_PORT=8081        # porta del server IP Webcam
+INTERVAL=10          # seconds between shots
+KEEP=30              # number of images to retain
+CAMERA_ID=1          # termux backend: 0 = rear, 1 = front
+CAM_PORT=8081        # IP Webcam server port
 
 DIR="$HOME/www/camera"
 SHOTS="$DIR/shots"
 MANIFEST="$DIR/shots.json"
 URL_FILE="$HOME/.camera-url"
-# Sostituire con l'indirizzo del dispositivo che esegue IP Webcam.
+# Replace with the address of the device running IP Webcam.
 DEFAULT_URL="http://192.168.1.100:$CAM_PORT/shot.jpg"
-# Su Termux /tmp non esiste e non e scrivibile: usare TMPDIR ($PREFIX/tmp).
+# Termux may not have a writable /tmp: use TMPDIR ($PREFIX/tmp).
 ERR_FILE="${TMPDIR:-$HOME}/camera-loop.err"
 
 mkdir -p "$SHOTS"
@@ -48,14 +49,13 @@ CAM_URL="$(cat "$URL_FILE" 2>/dev/null || echo "$DEFAULT_URL")"
 
 alive() { curl -fsS -m 5 -o /dev/null "$1" 2>/dev/null; }
 
-# Cerca IP Webcam sulla /24 dell'ultimo URL noto. Serve dopo un cambio di IP
-# via DHCP, visto che il telefono non puo leggere il proprio indirizzo.
+# Search for IP Webcam on the /24 of the last known URL. This handles a DHCP
+# address change because the phone cannot read its own address.
 #
-# Sonde in parallelo a gruppi di 32 con timeout di 1s: in sequenza la
-# scansione bloccava il loop per minuti quando l'app era semplicemente spenta,
-# ed e il caso piu frequente. Backoff di DISCOVERY_EVERY secondi per non
-# rifarla a ogni giro a vuoto: se il server e giu, ritrovarlo e impossibile e
-# insistere serve solo a fermare il loop.
+# Probe in parallel batches of 32 with a one-second timeout. Sequential scans
+# blocked the loop for minutes when the app was simply off, which is common.
+# Use a DISCOVERY_EVERY-second backoff: if the server is down, repeating the
+# scan every cycle cannot help and only stalls the loop.
 DISCOVERY_EVERY=180
 LAST_DISCOVERY=0
 
@@ -70,7 +70,7 @@ rediscover() {
 
   found_file="${TMPDIR:-$HOME}/camera-found"
   rm -f "$found_file"
-  echo "IP Webcam non risponde, cerco su $prefix.0/24..."
+  echo "IP Webcam is not responding; scanning $prefix.0/24..."
 
   for host in $(seq 1 254); do
     (
@@ -82,22 +82,22 @@ rediscover() {
   done
   wait
 
-  [ -s "$found_file" ] || { echo "nessun server trovato sulla /24"; return 1; }
+  [ -s "$found_file" ] || { echo "no server found on the /24"; return 1; }
   CAM_URL="$(cat "$found_file")"
   printf '%s\n' "$CAM_URL" > "$URL_FILE"
-  echo "trovata: $CAM_URL"
+  echo "found: $CAM_URL"
   curl -fsS -m 5 -o /dev/null "${CAM_URL%/shot.jpg}/settings/ffc?set=on" 2>/dev/null
 }
 
-# --- scelta del backend ----------------------------------------------------
+# --- backend selection -----------------------------------------------------
 BACKEND=""
 if command -v curl >/dev/null 2>&1; then
   if alive "$CAM_URL" || rediscover; then
     BACKEND="ipwebcam"
     printf '%s\n' "$CAM_URL" > "$URL_FILE"
-    # IP Webcam parte sulla fotocamera posteriore: ffc=front facing camera.
+    # IP Webcam starts on the rear camera: ffc means front-facing camera.
     curl -fsS -m 5 -o /dev/null "${CAM_URL%/shot.jpg}/settings/ffc?set=on" 2>/dev/null &&
-      echo "fotocamera frontale attivata" || echo "nota: non ho potuto forzare la frontale"
+      echo "front camera enabled" || echo "note: could not force the front camera"
     sleep 2
   fi
 fi
@@ -108,23 +108,23 @@ fi
 
 if [ -z "$BACKEND" ]; then
   cat >&2 <<'MSG'
-Nessun backend fotocamera disponibile.
+No camera backend is available.
 
-Opzione A (in uso, funziona a schermo spento):
-  avvia il server nell'app IP Webcam sulla porta 8081 e rilancia lo script.
+Option A (used here, works with the screen off):
+  start the server in the IP Webcam app on port 8081 and rerun this script.
 
-Opzione B:
-  sostituisci Termux con la build F-Droid/GitHub e installa l'app Termux:API
-  (gli scatti funzioneranno solo con Termux in primo piano).
+Option B:
+  replace Termux with the F-Droid/GitHub build and install the Termux:API app
+  (capture will work only with Termux in the foreground).
 MSG
   exit 1
 fi
 
-echo "backend fotocamera: $BACKEND${CAM_URL:+ ($CAM_URL)}"
+echo "camera backend: $BACKEND${CAM_URL:+ ($CAM_URL)}"
 
 esc() { printf '%s' "${1-}" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 
-# Ricostruisce shots.json dai file presenti, dal piu recente al piu vecchio.
+# Rebuild shots.json from the existing files, newest first.
 write_manifest() {
   local err="$1" first=1 f base ts bytes
   {
@@ -152,7 +152,7 @@ write_manifest() {
   mv "$MANIFEST.tmp" "$MANIFEST"
 }
 
-# Cancella gli scatti oltre i KEEP piu recenti.
+# Delete shots beyond the KEEP most recent images.
 prune() {
   local f
   for f in $(ls -1t "$SHOTS"/*.jpg 2>/dev/null | tail -n +$((KEEP + 1))); do
@@ -167,9 +167,9 @@ capture() {
   esac
 }
 
-trap 'write_manifest "loop fermato"; exit 0' INT TERM
+trap 'write_manifest "loop stopped"; exit 0' INT TERM
 
-write_manifest "avvio in corso"
+write_manifest "starting"
 fails=0
 
 while true; do
@@ -181,9 +181,9 @@ while true; do
   else
     rm -f "$target"
     last_error="$(head -c 200 "$ERR_FILE" 2>/dev/null)"
-    [ -n "$last_error" ] || last_error="scatto fallito o vuoto (backend $BACKEND)"
+    [ -n "$last_error" ] || last_error="capture failed or was empty (backend $BACKEND)"
     fails=$((fails + 1))
-    # Tre fallimenti di fila: probabile cambio di IP, riprova la scoperta.
+    # Three consecutive failures: likely an IP change, retry discovery.
     if [ "$BACKEND" = "ipwebcam" ] && [ $fails -ge 3 ]; then
       rediscover && fails=0
     fi

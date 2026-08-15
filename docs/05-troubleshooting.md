@@ -1,13 +1,13 @@
 # 5. Troubleshooting
 
-## Controllo dal computer
+## Check from the computer
 
 ```bash
 make status
 make logs
 ```
 
-Oppure direttamente dal telefono:
+Or directly from the phone:
 
 ```bash
 pgrep -laf 'sshd|http.server|cloudflared|sysinfo'
@@ -15,17 +15,17 @@ curl -I http://127.0.0.1:8080/
 tail -n 100 ~/cloudflared-termux.log
 ```
 
-## Sintomi comuni
+## Common symptoms
 
-| Sintomo | Causa più probabile | Azione |
+| Symptom | Most likely cause | Action |
 | --- | --- | --- |
-| `HTTP 530`, `error code: 1033` | nessun `cloudflared` connesso a Cloudflare | apri Termux e rilancia lo script di boot |
-| `HTTP 502` | tunnel attivo, origine locale non disponibile | controlla `python -m http.server` |
-| `connection refused` su `8022` | Termux/`sshd` fermo o telefono offline | apri Termux, avvia `sshd`, verifica rete |
-| deploy con `Permission denied` | chiave SSH o `authorized_keys` errati | ripeti la configurazione SSH |
-| servizio morto dopo qualche ora | Android/MIUI ha chiuso Termux | abilita autostart e batteria senza restrizioni |
+| `HTTP 530`, `error code: 1033` | no `cloudflared` process connected to Cloudflare | open Termux and run the boot script |
+| `HTTP 502` | tunnel is up, local origin is unavailable | check `python -m http.server` |
+| `connection refused` on `8022` | Termux/`sshd` is stopped or the phone is offline | open Termux, start `sshd`, check the network |
+| deploy returns `Permission denied` | wrong SSH key or `authorized_keys` | repeat the SSH setup |
+| service dies after a few hours | Android/MIUI killed Termux | enable autostart and no battery restrictions |
 
-## Check finale
+## Final check
 
 ```bash
 make deploy
@@ -33,5 +33,5 @@ make status
 curl -I https://termux.tongatron.org/
 ```
 
-Per un sito importante, sposta il frontend su Cloudflare Pages, GitHub Pages,
-Raspberry Pi o VPS e usa Termux come laboratorio o origine temporanea.
+For an important site, move the frontend to Cloudflare Pages, GitHub Pages,
+Raspberry Pi, or a VPS and use Termux as a lab or temporary origin.

@@ -1,48 +1,48 @@
-# 3. Hosting con Cloudflare Tunnel
+# 3. Hosting with Cloudflare Tunnel
 
-## URL temporaneo
+## Temporary URL
 
-Per una prova al volo:
+For a quick test:
 
 ```bash
 cloudflared tunnel --url http://127.0.0.1:8080
 ```
 
-L'URL `trycloudflare.com` è casuale e cambia. Non usarlo come indirizzo
-permanente.
+The `trycloudflare.com` URL is random and changes. Do not use it as a
+permanent address.
 
-## Dominio stabile
+## Stable domain
 
-Un named tunnel collega un hostname a `127.0.0.1:8080`:
+A named tunnel connects a hostname to `127.0.0.1:8080`:
 
 ```yaml
 tunnel: <tunnel-id>
 credentials-file: /data/data/com.termux/files/home/.cloudflared/<tunnel-id>.json
 
 ingress:
-  - hostname: esempio.tuodominio.it
+  - hostname: example.yourdomain.com
     service: http://127.0.0.1:8080
   - service: http_status:404
 ```
 
-Avvio:
+Connect DNS and start the tunnel:
 
 ```bash
-cloudflared tunnel route dns <nome-tunnel> esempio.tuodominio.it
-cloudflared tunnel run <nome-tunnel>
+cloudflared tunnel route dns <tunnel-name> example.yourdomain.com
+cloudflared tunnel run <tunnel-name>
 ```
 
-Il file JSON del tunnel e ogni certificato restano soltanto sul telefono e
-sono esclusi dal repository tramite `.gitignore`.
+Tunnel credentials stay on the phone and are excluded from the repository by
+`.gitignore`.
 
-## Deploy dal computer
+## Deploy from the computer
 
 ```bash
 cp config.example.env config.env
-# modifica config.env con host, utente e porta SSH
+# edit config.env with the host, username, and SSH port
 make check
 make deploy
 ```
 
-Il deploy crea le directory del sito e copia le pagine nelle posizioni usate
-dalla demo (`/`, `/guida/`, `/camera/`).
+The deploy script creates the site directories and copies the pages used by the
+demo (`/`, `/guida/`, and `/camera/`).

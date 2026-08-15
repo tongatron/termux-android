@@ -1,228 +1,210 @@
-# Come hostare una pagina web su Android con Termux
+# How to host a web page on Android with Termux
 
-Guida rapida e autosufficiente per pubblicare un sito statico da un telefono
-Android, usando [Termux](https://termux.dev/) come ambiente Linux, senza
-root. Per il log dettagliato/troubleshooting di un caso reale (con incidenti,
-limiti Android 15/MIUI, fotocamera, ecc.) vedi
-[Termolux-android.md](Termolux-android.md).
+A self-contained guide to publishing a static site from an Android phone,
+using [Termux](https://termux.dev/) as a Linux environment without root. For
+the public workflow, start with the English [README](README.md) and the guides
+in [`docs/`](docs/).
 
-## Cosa serve
+## Requirements
 
-- Un telefono Android con **Termux** installato (Play Store o F-Droid — vedi
-  nota sotto sulle differenze).
-- Un Mac/PC sulla stessa rete (o via Tailscale) per lavorare comodamente da
-  tastiera invece che dal telefono.
-- Se vuoi un URL pubblico raggiungibile da internet: un account
-  [Cloudflare](https://cloudflare.com) gratuito (non serve un dominio a
-  pagamento, Cloudflare ne offre uno casuale con il tunnel "quick").
+- An Android phone with **Termux** installed (Google Play or F-Droid/GitHub).
+- A Mac/PC on the same network (or connected through Tailscale) for comfortable
+  keyboard-based administration.
+- For a public URL: a free [Cloudflare](https://cloudflare.com) account. A
+  paid domain is not required for a temporary Quick Tunnel URL.
 
-**Play Store vs F-Droid**: la build Play Store (`TERMUX_VERSION` tipo
-`googleplay.*`) usa il repo `https://termux.net`; quella F-Droid/GitHub usa
-`packages.termux.dev`. Alcune funzioni di Termux:API (es. scatto fotocamera)
-non sono disponibili sulla build Play Store. Per solo web hosting non fa
-differenza.
+**Google Play vs F-Droid**: the Google Play build uses the `https://termux.net`
+repository; the F-Droid/GitHub build uses `packages.termux.dev`. Some Termux:API
+features are not available in the Google Play build. This does not affect basic
+web hosting.
 
-## 1. Setup iniziale in Termux
+## 1. Initial Termux setup
 
-Sul telefono, apri l'app Termux:
+Open the Termux app on the phone:
 
 ```bash
 pkg update && pkg upgrade -y
 pkg install -y openssh python net-tools
 ```
 
-- `openssh` — per lavorare da tastiera Mac/PC invece che dal telefono
-- `python` — serve il modulo `http.server` incluso, nessuna installazione a
-  parte
-- `net-tools` — utility di rete (limitate su Android 15+, vedi sotto)
+- `openssh` — administer the phone from a Mac/PC
+- `python` — includes the `http.server` module
+- `net-tools` — optional network utilities (limited on Android 15+)
 
-## 2. Accesso SSH da Mac/PC
+## 2. SSH access from a Mac/PC
 
-Nel telefono:
+On the phone:
 
 ```bash
-passwd        # imposta una password temporanea, serve solo a copiare la chiave
+passwd        # temporary password for the first key installation
 sshd
-whoami        # segna l'utente: es. u0_a123
+whoami        # note the Termux username
 ```
 
-Sul Mac/PC, trova l'IP del telefono (**Impostazioni -> Wi-Fi -> rete
-connessa -> dettagli**, su Android 15 `ip addr`/`ifconfig` falliscono per
-SELinux) e copia la chiave pubblica:
+Find the phone IP in **Settings → Wi-Fi → connected network → details**. On
+Android 15, `ip addr` and `ifconfig` may fail because of SELinux. Then connect:
 
 ```bash
-ssh-copy-id -p 8022 -i ~/.ssh/id_ed25519.pub <utente>@<ip-telefono>
+ssh -p 8022 <termux-user>@<phone-ip>
 ```
 
-Porta `8022`, non `22`: Termux non ha privilegi per la porta SSH standard.
-Da quel momento l'accesso è a chiave, senza più password:
+Termux uses port `8022`, not the privileged SSH port `22`. Install a key so
+future sessions do not require a password:
 
 ```bash
-ssh -p 8022 <utente>@<ip-telefono>
+test -f ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519
+cat ~/.ssh/id_ed25519.pub | \
+  ssh -p 8022 <termux-user>@<phone-ip> \
+  'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
 ```
 
-## 3. Servire la pagina
+## 3. Serve the page
 
-Nel telefono (o via SSH da qui in poi):
+On the phone (or over SSH):
 
 ```bash
 mkdir -p ~/www
-# copiaci dentro index.html e gli altri file statici
+# copy index.html and the other static files here
 python -m http.server 8080 --directory ~/www --bind 127.0.0.1
 ```
 
-`--bind 127.0.0.1` limita il server al loopback: raggiungibile solo dal
-telefono stesso o tramite un tunnel (vedi sotto), non dalla rete locale.
-Per renderlo raggiungibile anche in LAN, ometti `--bind` (o usa
-`--bind 0.0.0.0`).
+Binding to `127.0.0.1` keeps the server on the phone and makes it reachable
+through a tunnel, but not directly from the local network. To expose it on the
+LAN, omit `--bind` or use `--bind 0.0.0.0`.
 
-Per copiare i file dal Mac/PC:
+From the Mac/PC, a single file can be copied with:
 
 ```bash
-scp -P 8022 index.html <utente>@<ip-telefono>:~/www/index.html
+scp -P 8022 index.html <termux-user>@<phone-ip>:~/www/index.html
 ```
 
-## 4. Tenerlo acceso in background
+For the repeatable workflow, use `make deploy` from the main README.
 
-Chiudendo la sessione SSH, `python -m http.server` lanciato al punto 3 muore.
-Per farlo sopravvivere:
+## 4. Keep it running in the background
+
+When the SSH session closes, a foreground `http.server` normally exits. Detach
+it with:
 
 ```bash
 setsid nohup python -m http.server 8080 --directory ~/www --bind 127.0.0.1 \
   < /dev/null > ~/webserver.log 2>&1 & disown
 ```
 
-**Il solo `nohup ... &` non basta**: chiudendo la sessione SSH, Termux
-termina comunque il processo. Serve `setsid` per staccarlo davvero dalla
-sessione, con stdin da `/dev/null`.
+`nohup ... &` alone is not always enough: `setsid` detaches the process from
+the session and `/dev/null` prevents it from waiting on a closed terminal.
 
-## 5. Pubblicarlo su internet con un Cloudflare Tunnel
+## 5. Publish it with Cloudflare Tunnel
 
 ```bash
 pkg install cloudflared
 ```
 
-### Opzione rapida (URL casuale, per provare)
+### Quick option (random URL)
 
-Nessun login richiesto, ma l'URL cambia a ogni riavvio e non ha garanzie di
-uptime:
+No login is required, but the URL changes and there is no uptime guarantee:
 
 ```bash
 cloudflared tunnel --url http://127.0.0.1:8080
 ```
 
-Il log stampa l'URL pubblico generato, tipo
-`https://<parole-casuali>.trycloudflare.com`.
+The log prints a URL such as `https://random-words.trycloudflare.com`.
 
-### Opzione stabile (dominio fisso, richiede account Cloudflare)
+### Stable option (fixed domain)
 
-Un **named tunnel** ha bisogno del login OAuth la prima volta:
+A **named tunnel** requires an interactive login the first time:
 
 ```bash
-cloudflared tunnel login          # apre un URL da autorizzare nel browser
-cloudflared tunnel create <nome-tunnel>
+cloudflared tunnel login
+cloudflared tunnel create <tunnel-name>
 ```
 
-Configura `~/.cloudflared/config.yml`:
+Create `~/.cloudflared/config.yml`:
 
 ```yaml
 tunnel: <tunnel-id>
 credentials-file: /data/data/com.termux/files/home/.cloudflared/<tunnel-id>.json
 
 ingress:
-  - hostname: tuo-sottodominio.tuodominio.org
+  - hostname: subdomain.yourdomain.org
     service: http://127.0.0.1:8080
   - service: http_status:404
 ```
 
-Poi collega il DNS e avvia:
+Connect DNS and start it:
 
 ```bash
-cloudflared tunnel route dns <nome-tunnel> tuo-sottodominio.tuodominio.org
+cloudflared tunnel route dns <tunnel-name> subdomain.yourdomain.org
 
-setsid nohup cloudflared tunnel run <nome-tunnel> \
+setsid nohup cloudflared tunnel run <tunnel-name> \
   < /dev/null > ~/cloudflared.log 2>&1 & disown
 ```
 
-`cloudflared tunnel login` richiede un browser interattivo: se lo fai da SSH
-senza schermo, apri l'URL stampato a schermo su un altro dispositivo già
-loggato all'account Cloudflare che vuoi usare.
+If login is performed over SSH without a screen, open the printed URL on
+another device already signed in to the intended Cloudflare account.
 
-## 6. Tenere Termux vivo a schermo spento
+## 6. Keep Termux alive with the screen off
 
-Android sospende le app in background per risparmiare batteria. Per un
-server che deve restare su:
+Android suspends background apps to save battery. For a service that should
+remain available:
 
 ```bash
 termux-wake-lock
 ```
 
-Mantiene sveglia la CPU anche a schermo spento (non il display, quindi
-consuma meno che tenerlo acceso).
+This keeps the CPU awake while the screen is off. It does not keep the display
+on.
 
-Sul telefono, disattiva anche le restrizioni batteria per Termux:
+Also remove Termux battery restrictions:
 
 ```text
-Impostazioni -> App -> Termux -> Batteria -> Nessuna restrizione
-Impostazioni -> App -> Termux -> Avvio automatico (se presente, es. MIUI)
+Settings → Apps → Termux → Battery → No restrictions
+Settings → Apps → Termux → Autostart (if available, e.g. MIUI)
 ```
 
-Senza questo, produttori come Xiaomi/MIUI possono terminare Termux in
-background anche con `termux-wake-lock` attivo.
+Without these settings, Xiaomi/MIUI may terminate Termux even with a wake lock.
 
-## 7. Avvio automatico al riavvio del telefono
+## 7. Start automatically after reboot
 
-Dalla versione `2024.10.24` di Termux in poi (Play Store compresa), qualunque
-script eseguibile in `~/.termux/boot/` viene lanciato automaticamente da
-Android al riavvio — funzione prima offerta dall'app separata Termux:Boot,
-ora integrata.
+Place an executable script in `~/.termux/boot/`. The ready-to-use version is
+[`boot-start-services.sh`](boot-start-services.sh):
 
 ```bash
 mkdir -p ~/.termux/boot
-cat > ~/.termux/boot/start-services <<'EOF'
-#!/data/data/com.termux/files/usr/bin/bash
-termux-wake-lock
-sshd
-setsid nohup python -m http.server 8080 --directory ~/www --bind 127.0.0.1 \
-  < /dev/null > ~/webserver.log 2>&1 & disown
-setsid nohup cloudflared tunnel run <nome-tunnel> \
-  < /dev/null > ~/cloudflared.log 2>&1 & disown
-EOF
+cp ~/termux-android/boot-start-services.sh ~/.termux/boot/start-services
 chmod +x ~/.termux/boot/start-services
 ```
 
-Perché lo script parta davvero, va tenuto abilitato il permesso "Avvio
-automatico" del punto 6 — senza, Android non consegna il broadcast di boot
-a Termux (comune su MIUI/Xiaomi).
+On Google Play Termux, boot support is integrated into the main app. On
+F-Droid/GitHub installations, install and open
+[Termux:Boot](https://github.com/termux/termux-boot) once.
 
-## Cheat sheet comandi utili
+Android must be allowed to deliver the boot event to Termux; enable the
+**Autostart** permission in MIUI/Xiaomi settings.
 
-| Comando | Cosa fa |
+## Useful command cheat sheet
+
+| Command | Purpose |
 |---|---|
-| `sshd` | avvia il server SSH sulla porta 8022 |
-| `pgrep sshd` | verifica se sshd è attivo |
-| `pkill sshd` | ferma sshd |
-| `termux-wake-lock` | CPU sveglia a schermo spento |
-| `termux-wake-unlock` | rilascia il wake lock |
-| `python -m http.server 8080 --directory ~/www --bind 127.0.0.1` | server web sulla porta 8080 |
-| `setsid nohup <comando> < /dev/null > log.txt 2>&1 & disown` | esegue `<comando>` in background, sopravvive alla chiusura della sessione SSH |
-| `cloudflared tunnel --url http://127.0.0.1:8080` | tunnel pubblico rapido, URL casuale |
-| `cloudflared tunnel list` | elenca i tunnel già creati sull'account |
-| `pgrep -laf "http.server\|cloudflared\|sshd"` | controlla quali servizi sono attivi |
-| `scp -P 8022 file <utente>@<ip>:~/percorso` | copia un file dal Mac/PC al telefono |
-| `ssh -p 8022 <utente>@<ip>` | connessione SSH al telefono |
+| `sshd` | start SSH on port 8022 |
+| `pgrep sshd` | check whether SSH is running |
+| `pkill sshd` | stop SSH |
+| `termux-wake-lock` | keep the CPU awake with the screen off |
+| `termux-wake-unlock` | release the wake lock |
+| `python -m http.server 8080 --directory ~/www --bind 127.0.0.1` | serve the site on port 8080 |
+| `setsid nohup <command> < /dev/null > log.txt 2>&1 & disown` | detach a background process from SSH |
+| `cloudflared tunnel --url http://127.0.0.1:8080` | start a temporary public tunnel |
+| `cloudflared tunnel list` | list named tunnels in the account |
+| `pgrep -laf "http.server\|cloudflared\|sshd"` | show the main services |
+| `scp -P 8022 file <user>@<host>:~/path` | copy a file from the Mac/PC |
+| `ssh -p 8022 <user>@<host>` | connect to the phone |
 
-## Limiti da tenere a mente
+## Limitations
 
-- **Non è un server 24/7 affidabile come hardware dedicato.** Un telefono
-  Android può essere ucciso in background dal sistema nonostante wake-lock e
-  permessi, specie su MIUI/Xiaomi. Per servizi importanti, meglio un
-  Raspberry Pi o un mini PC.
-- **Android 15+ blocca `ip addr`/`ifconfig` a Termux** (SELinux nega
-  l'accesso netlink): l'IP locale va letto dalle impostazioni Android, non da
-  riga di comando.
-- **`/tmp` non esiste in Termux**: usare `$TMPDIR` (`$PREFIX/tmp`) per file
-  temporanei.
-- **DHCP cambia l'IP locale nel tempo**: per un accesso stabile via SSH senza
-  ricercare l'IP ogni volta, usare Tailscale (IP stabile indipendente dal
-  Wi-Fi) o assegnare un IP fisso nel router.
+- **This is not a 24/7 server replacement.** Android can kill background apps,
+  especially on MIUI/Xiaomi, even with a wake lock and the right permissions.
+- **Android 15+ may block `ip addr`/`ifconfig` in Termux** because of SELinux;
+  read the local IP from Android settings instead.
+- **`/tmp` may not exist in Termux**; use `$TMPDIR` (`$PREFIX/tmp`) for
+  temporary files.
+- **DHCP addresses change.** For stable SSH administration, use Tailscale or a
+  fixed DHCP lease on the router.

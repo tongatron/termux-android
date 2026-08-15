@@ -1,13 +1,13 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Genera ~/www/info.json con lo stato corrente del telefono, consumato da
-# ~/www/index.html via fetch().
+# Generates ~/www/info.json with the current phone status, consumed by
+# ~/www/index.html through fetch().
 #
-#   ~/sysinfo.sh              una singola generazione
+#   ~/sysinfo.sh              generate once
 #   nohup ~/sysinfo.sh loop > ~/sysinfo.log 2>&1 & disown
 #
-# Nota: su Android 15 /proc/loadavg, /proc/uptime e /proc/net/dev sono negati
-# a Termux da SELinux. Il comando `uptime` funziona comunque, `ifconfig` no:
-# per questo la pagina non espone indirizzi IP.
+# Note: on Android 15, SELinux blocks /proc/loadavg, /proc/uptime, and
+# /proc/net/dev for Termux. `uptime` still works, but `ifconfig` does not;
+# therefore the page does not expose IP addresses.
 
 set -u
 
@@ -15,18 +15,18 @@ WWW="$HOME/www"
 OUT="$WWW/info.json"
 INTERVAL=30
 
-# Scappa i caratteri che romperebbero il JSON.
+# Escape characters that would break JSON.
 esc() { printf '%s' "${1-}" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/ /g'; }
 
 pkgver() { dpkg-query -W -f='${Version}' "$1" 2>/dev/null || true; }
 
-# true/false JSON a seconda che il processo giri.
+# Emit JSON true/false depending on whether the process is running.
 running() { if pgrep -f "$1" >/dev/null 2>&1; then printf 'true'; else printf 'false'; fi; }
 
 generate() {
   local up load mem_total mem_used mem_avail st_total st_used st_pct battery
 
-  # `uptime` stampa "HH:MM:SS up 40 min,  load average: 1.0, 2.0, 3.0"
+  # `uptime` prints "HH:MM:SS up 40 min, load average: 1.0, 2.0, 3.0".
   up="$(uptime 2>/dev/null || true)"
   load="$(printf '%s' "$up" | sed -n 's/.*load average: *//p')"
   up="$(printf '%s' "$up" | sed -n 's/.*up \(.*\), *load average.*/\1/p' | sed 's/^ *//; s/, *$//')"
@@ -35,8 +35,8 @@ generate() {
 
   read -r _ st_total st_used _ st_pct _ <<<"$(df -h "$HOME" 2>/dev/null | tail -1)"
 
-  # termux-battery-status esiste solo con il pacchetto termux-api E l'app
-  # Termux:API installata; se manca, il campo resta null.
+  # termux-battery-status exists only with the termux-api package AND the
+  # Termux:API app installed; when missing, the field remains null.
   battery=""
   if command -v termux-battery-status >/dev/null 2>&1; then
     battery="$(timeout 10 termux-battery-status 2>/dev/null | tr -d '\n' || true)"
@@ -99,5 +99,5 @@ if [ "${1:-}" = "loop" ]; then
   done
 else
   generate
-  echo "scritto $OUT"
+  echo "wrote $OUT"
 fi

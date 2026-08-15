@@ -1,9 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Eseguito da Termux all'avvio del telefono (~/.termux/boot/start-services).
-# Avvia in modo idempotente sshd, web server, sysinfo.sh loop e cloudflared.
+# Run by Termux at phone boot (~/.termux/boot/start-services).
+# Idempotently starts sshd, the web server, the sysinfo loop, and cloudflared.
 #
-# camera-loop.sh e' escluso di proposito: il modulo fotocamera resta opzionale
-# e non viene avviato dal workflow base.
+# camera-loop.sh is intentionally excluded: the camera module is optional and
+# is not started by the base workflow.
 
 set -u
 

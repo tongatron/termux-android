@@ -1,16 +1,16 @@
-# 1. Installazione
+# 1. Installation
 
-Questo how-to usa Termux come ambiente Linux su Android e Python come server
-HTTP locale. Il telefono non deve avere root.
+This how-to uses Termux as a Linux environment on Android and Python as the
+local HTTP server. The phone does not need root access.
 
-## Prerequisiti
+## Requirements
 
-- Termux installato da una fonte coerente (Google Play oppure F-Droid/GitHub);
-- un computer per il primo accesso SSH;
-- un dominio gestito da Cloudflare se vuoi un indirizzo stabile;
-- una rete Wi-Fi o mobile affidabile.
+- Termux installed from one consistent source (Google Play or F-Droid/GitHub);
+- a computer for the first SSH connection;
+- a Cloudflare-managed domain if you want a stable public address;
+- a reliable Wi-Fi or mobile connection.
 
-## Pacchetti
+## Packages
 
 In Termux:
 
@@ -19,7 +19,7 @@ pkg update && pkg upgrade -y
 pkg install -y openssh python cloudflared git
 ```
 
-## Repository sul telefono
+## Repository on the phone
 
 ```bash
 cd ~
@@ -28,14 +28,14 @@ cd ~/termux-android
 bash scripts/bootstrap-termux.sh
 ```
 
-Se il telefono deve soltanto servire i file, puoi anche copiare il sito dal
-computer con `make deploy` senza mantenere una copia Git sul dispositivo.
+If the phone only needs to serve files, you can skip the Git checkout and copy
+the site from the computer with `make deploy`.
 
-## Server locale
+## Local server
 
 ```bash
 mkdir -p ~/www
 python -m http.server 8080 --directory ~/www --bind 127.0.0.1
 ```
 
-Il server ascolta solo sul loopback. L'accesso pubblico passerà dal tunnel.
+The server listens only on loopback. Public access is provided by the tunnel.

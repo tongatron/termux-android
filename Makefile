@@ -6,15 +6,15 @@ CONFIG ?= config.env
 
 help:
 	@printf '%s\n' \
-	  'make check   - controlla la sintassi degli script' \
-	  'make deploy  - copia il sito sul telefono' \
-	  'make status  - verifica i servizi remoti' \
-	  'make logs    - mostra il log di cloudflared' \
-	  'make restart - rilancia lo stack Termux'
+	  'make check   - validate script syntax' \
+	  'make deploy  - copy the site to the phone' \
+	  'make status  - check remote services' \
+	  'make logs    - show the cloudflared log' \
+	  'make restart - restart the Termux stack'
 
 check:
 	@bash -n boot-start-services.sh scripts/*.sh
-	@printf '%s\n' 'Sintassi OK'
+	@printf '%s\n' 'Syntax OK'
 
 deploy:
 	@CONFIG_FILE=$(CONFIG) bash scripts/deploy.sh

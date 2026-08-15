@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Guida &middot; termux.tongatron.org</title>
+<title>Guide &middot; termux.tongatron.org</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -52,71 +52,70 @@
 <body>
   <div class="wrap">
     <a class="back" href="/">&larr; termux.tongatron.org</a>
-    <h1>Come hostare una pagina web su Android con Termux</h1>
-    <p class="sub">Guida rapida per pubblicare un sito statico da un telefono Android con Termux, senza root.</p>
+    <h1>How to host a web page on Android with Termux</h1>
+    <p class="sub">A quick guide to publishing a static site from an Android phone with Termux, without root.</p>
 
     <div class="note">
-      Questa pagina spiega la procedura in generale. I dettagli del setup di
-      <em>questo</em> telefono (IP, tunnel, incidenti) sono nel repo, non
-      pubblicati qui.
+      This page explains the general procedure. Details about the setup of
+      <em>this</em> phone (IP, tunnel, incidents) stay in the repository and
+      are not published here.
     </div>
 
-    <h2>Cosa serve</h2>
+    <h2>Requirements</h2>
     <ul>
-      <li>Un telefono Android con <strong>Termux</strong> installato (Play Store o F-Droid).</li>
-      <li>Un Mac/PC sulla stessa rete (o via Tailscale) per lavorare da tastiera.</li>
-      <li>Per un URL pubblico: un account Cloudflare gratuito.</li>
+      <li>An Android phone with <strong>Termux</strong> installed (Google Play or F-Droid).</li>
+      <li>A Mac/PC on the same network (or connected through Tailscale) for keyboard-based administration.</li>
+      <li>For a public URL: a free Cloudflare account.</li>
     </ul>
 
-    <h2>1. Setup iniziale in Termux</h2>
-    <p>Sul telefono, apri l'app Termux:</p>
+    <h2>1. Initial Termux setup</h2>
+    <p>Open the Termux app on the phone:</p>
     <pre class="cmd"><code>pkg update && pkg upgrade -y
 pkg install -y openssh python net-tools</code></pre>
-    <p><code>openssh</code> per lavorare da tastiera Mac/PC, <code>python</code> per il web server incluso, <code>net-tools</code> per le utility di rete.</p>
+    <p><code>openssh</code> for Mac/PC administration, <code>python</code> for the built-in web server, and <code>net-tools</code> for network utilities.</p>
 
-    <h2>2. Accesso SSH da Mac/PC</h2>
-    <p>Nel telefono:</p>
-    <pre class="cmd"><code>passwd        # password temporanea, serve solo a copiare la chiave
+    <h2>2. SSH access from a Mac/PC</h2>
+    <p>On the phone:</p>
+    <pre class="cmd"><code>passwd        # temporary password, only needed to copy the key
 sshd
-whoami        # segna l'utente, es. u0_a123</code></pre>
-    <p>Sul Mac/PC, copia la chiave pubblica (porta <code>8022</code>, non <code>22</code>: Termux non ha privilegi per la porta SSH standard):</p>
-    <pre class="cmd"><code>ssh-copy-id -p 8022 -i ~/.ssh/id_ed25519.pub &lt;utente&gt;@&lt;ip-telefono&gt;
-ssh -p 8022 &lt;utente&gt;@&lt;ip-telefono&gt;</code></pre>
+whoami        # note the username, e.g. u0_a123</code></pre>
+    <p>On the Mac/PC, use port <code>8022</code>, not <code>22</code>: Termux cannot use the standard privileged SSH port.</p>
+    <pre class="cmd"><code>ssh -p 8022 &lt;termux-user&gt;@&lt;phone-ip&gt;</code></pre>
 
-    <h2>3. Servire la pagina</h2>
+    <h2>3. Serve the page</h2>
     <pre class="cmd"><code>mkdir -p ~/www
-# copiaci dentro index.html e gli altri file statici
+# copy index.html and the other static files here
 python -m http.server 8080 --directory ~/www --bind 127.0.0.1</code></pre>
-    <p><code>--bind 127.0.0.1</code> limita il server al loopback, raggiungibile solo tramite un tunnel. Per copiare i file dal Mac/PC:</p>
-    <pre class="cmd"><code>scp -P 8022 index.html &lt;utente&gt;@&lt;ip-telefono&gt;:~/www/index.html</code></pre>
+    <p><code>--bind 127.0.0.1</code> keeps the server on loopback, reachable through a tunnel. To copy files from the Mac/PC:</p>
+    <pre class="cmd"><code>scp -P 8022 index.html &lt;termux-user&gt;@&lt;phone-ip&gt;:~/www/index.html</code></pre>
 
-    <h2>4. Tenerlo acceso in background</h2>
-    <p>Il solo <code>nohup ... &amp;</code> non basta: chiudendo la sessione SSH, Termux termina comunque il processo. Serve <code>setsid</code> per staccarlo davvero:</p>
+    <h2>4. Keep it running in the background</h2>
+    <p><code>nohup ... &amp;</code> alone is not enough: when the SSH session closes, Termux may still terminate the process. Use <code>setsid</code> to detach it:</p>
     <pre class="cmd"><code>setsid nohup python -m http.server 8080 --directory ~/www --bind 127.0.0.1 \
   &lt; /dev/null &gt; ~/webserver.log 2&gt;&1 & disown</code></pre>
 
-    <h2>5. Pubblicarlo su internet con Cloudflare Tunnel</h2>
+    <h2>5. Publish it with Cloudflare Tunnel</h2>
     <pre class="cmd"><code>pkg install cloudflared</code></pre>
-    <h3>Opzione rapida (URL casuale, per provare)</h3>
-    <p>Nessun login richiesto, ma l'URL cambia a ogni riavvio:</p>
+    <h3>Quick option (random URL)</h3>
+    <p>No login is required, but the URL changes after a restart:</p>
     <pre class="cmd"><code>cloudflared tunnel --url http://127.0.0.1:8080</code></pre>
-    <h3>Opzione stabile (dominio fisso)</h3>
-    <p>Un named tunnel richiede login la prima volta:</p>
+    <h3>Stable option (fixed domain)</h3>
+    <p>A named tunnel requires a first-time login:</p>
     <pre class="cmd"><code>cloudflared tunnel login
 cloudflared tunnel create &lt;nome-tunnel&gt;
-cloudflared tunnel route dns &lt;nome-tunnel&gt; tuo-sottodominio.tuodominio.org
+cloudflared tunnel route dns &lt;tunnel-name&gt; subdomain.yourdomain.org
 
-setsid nohup cloudflared tunnel run &lt;nome-tunnel&gt; \
+setsid nohup cloudflared tunnel run &lt;tunnel-name&gt; \
   &lt; /dev/null &gt; ~/cloudflared.log 2&gt;&1 & disown</code></pre>
 
-    <h2>6. Tenere Termux vivo a schermo spento</h2>
+    <h2>6. Keep Termux alive with the screen off</h2>
     <pre class="cmd"><code>termux-wake-lock</code></pre>
-    <p>Mantiene sveglia la CPU a schermo spento. Sul telefono, disattiva anche le restrizioni batteria:</p>
-    <p><code>Impostazioni &rarr; App &rarr; Termux &rarr; Batteria &rarr; Nessuna restrizione</code><br>
-    <code>Impostazioni &rarr; App &rarr; Termux &rarr; Avvio automatico</code> (se presente, es. MIUI)</p>
+    <p>This keeps the CPU awake with the screen off. Also remove Termux battery restrictions:</p>
+    <p><code>Settings &rarr; Apps &rarr; Termux &rarr; Battery &rarr; No restrictions</code><br>
+    <code>Settings &rarr; Apps &rarr; Termux &rarr; Autostart</code> (if available, e.g. MIUI)</p>
 
-    <h2>7. Avvio automatico al riavvio del telefono</h2>
-    <p>Dalla versione <code>2024.10.24</code> di Termux, ogni script eseguibile in <code>~/.termux/boot/</code> parte da solo al riavvio (funzione ex Termux:Boot, ora integrata):</p>
+    <h2>7. Automatic startup after reboot</h2>
+    <p>On Google Play Termux, executable scripts in <code>~/.termux/boot/</code> start at reboot through integrated boot support. F-Droid/GitHub installations use the Termux:Boot add-on:</p>
     <pre class="cmd"><code>mkdir -p ~/.termux/boot
 cat > ~/.termux/boot/start-services <<'EOF'
 #!/data/data/com.termux/files/usr/bin/bash
@@ -129,28 +128,28 @@ setsid nohup cloudflared tunnel run &lt;nome-tunnel&gt; \
 EOF
 chmod +x ~/.termux/boot/start-services</code></pre>
 
-    <h2>Cheat sheet comandi</h2>
+    <h2>Command cheat sheet</h2>
     <table>
-      <tr><th>Comando</th><th>Cosa fa</th></tr>
-      <tr><td><code>sshd</code></td><td>avvia SSH sulla porta 8022</td></tr>
-      <tr><td><code>pgrep sshd</code></td><td>verifica se sshd &egrave; attivo</td></tr>
-      <tr><td><code>termux-wake-lock</code></td><td>CPU sveglia a schermo spento</td></tr>
-      <tr><td><code>python -m http.server 8080 --directory ~/www</code></td><td>server web sulla porta 8080</td></tr>
-      <tr><td><code>setsid nohup &lt;cmd&gt; &lt;/dev/null &gt;log 2&gt;&1 & disown</code></td><td>esegue in background, sopravvive alla chiusura SSH</td></tr>
-      <tr><td><code>cloudflared tunnel --url http://127.0.0.1:8080</code></td><td>tunnel pubblico rapido</td></tr>
-      <tr><td><code>pgrep -laf "http.server\|cloudflared\|sshd"</code></td><td>controlla i servizi attivi</td></tr>
-      <tr><td><code>scp -P 8022 file &lt;utente&gt;@&lt;ip&gt;:~/percorso</code></td><td>copia un file al telefono</td></tr>
+      <tr><th>Command</th><th>Purpose</th></tr>
+      <tr><td><code>sshd</code></td><td>start SSH on port 8022</td></tr>
+      <tr><td><code>pgrep sshd</code></td><td>check whether SSH is active</td></tr>
+      <tr><td><code>termux-wake-lock</code></td><td>keep the CPU awake with the screen off</td></tr>
+      <tr><td><code>python -m http.server 8080 --directory ~/www</code></td><td>serve the site on port 8080</td></tr>
+      <tr><td><code>setsid nohup &lt;cmd&gt; &lt;/dev/null &gt;log 2&gt;&1 & disown</code></td><td>run in the background after SSH closes</td></tr>
+      <tr><td><code>cloudflared tunnel --url http://127.0.0.1:8080</code></td><td>start a quick public tunnel</td></tr>
+      <tr><td><code>pgrep -laf "http.server\|cloudflared\|sshd"</code></td><td>check active services</td></tr>
+      <tr><td><code>scp -P 8022 file &lt;user&gt;@&lt;host&gt;:~/path</code></td><td>copy a file to the phone</td></tr>
     </table>
 
-    <h2>Limiti da tenere a mente</h2>
+    <h2>Limitations</h2>
     <ul>
-      <li>Non &egrave; un server 24/7 affidabile come hardware dedicato: Android pu&ograve; uccidere Termux in background, specie su MIUI/Xiaomi.</li>
-      <li>Android 15+ blocca <code>ip addr</code>/<code>ifconfig</code> a Termux (SELinux nega l'accesso netlink).</li>
-      <li><code>/tmp</code> non esiste in Termux: usare <code>$TMPDIR</code>.</li>
-      <li>L'IP locale via DHCP cambia nel tempo: per accesso stabile usare Tailscale o un IP fisso.</li>
+      <li>This is not a dedicated 24/7 server: Android may kill Termux in the background, especially on MIUI/Xiaomi.</li>
+      <li>Android 15+ may block <code>ip addr</code>/<code>ifconfig</code> in Termux (SELinux blocks netlink access).</li>
+      <li><code>/tmp</code> may not exist in Termux: use <code>$TMPDIR</code>.</li>
+      <li>The DHCP address changes: use Tailscale or a fixed address for stable access.</li>
     </ul>
 
-    <div class="footer">tongatron.org &middot; guida generica, non specifica di questo telefono</div>
+    <div class="footer">tongatron.org &middot; general guide, not specific to this phone</div>
   </div>
 </body>
 </html>

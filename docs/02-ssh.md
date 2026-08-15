@@ -1,9 +1,9 @@
-# 2. SSH senza complicazioni
+# 2. SSH without the friction
 
-SSH serve per amministrare Termux dal Mac/PC. Non è necessario per il traffico
-pubblico del sito: Cloudflare Tunnel funziona con una connessione uscente.
+SSH is used to administer Termux from a Mac/PC. It is not required for public
+web traffic: Cloudflare Tunnel uses an outbound connection.
 
-## Prima connessione
+## First connection
 
 In Termux:
 
@@ -15,59 +15,51 @@ sshd
 whoami
 ```
 
-La porta SSH di Termux è `8022`.
+Termux uses SSH port `8022`.
 
-Trova l'IP del telefono nelle impostazioni Wi-Fi Android oppure nell'app
-Tailscale. Tailscale è opzionale: serve per amministrare il dispositivo, non
-per pubblicare il sito.
+Find the phone IP in Android Wi-Fi settings or in the Tailscale app. Tailscale
+is optional: it helps administer the phone, but it does not publish the site.
 
-Dal computer, prova il primo accesso con la password temporanea:
+From the computer, try the first login with the temporary password:
 
 ```bash
-ssh -p 8022 <utente-termux>@<ip-del-telefono>
+ssh -p 8022 <termux-user>@<phone-ip>
 ```
 
-## Chiave SSH
+## SSH key
 
-Sul computer, genera una chiave se non esiste e installala sul telefono:
+On the computer, create a key if necessary and install it on the phone:
 
 ```bash
 test -f ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519
 cat ~/.ssh/id_ed25519.pub | \
-  ssh -p 8022 <utente-termux>@<ip-del-telefono> \
+  ssh -p 8022 <termux-user>@<phone-ip> \
   'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
 ```
 
-Dal computer, copia la chiave pubblica una sola volta:
+## SSH alias
 
-```bash
-ssh-copy-id -p 8022 -i ~/.ssh/id_ed25519.pub <utente>@<ip-del-telefono>
-```
-
-## Alias SSH
-
-In `~/.ssh/config` sul computer:
+Add this to `~/.ssh/config` on the computer:
 
 ```sshconfig
 Host termux-phone
-    HostName <ip-lan-o-tailscale-del-telefono>
+    HostName <phone-lan-or-tailscale-ip>
     Port 8022
-    User <utente-termux>
+    User <termux-user>
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-Da quel momento:
+Then connect with:
 
 ```bash
 ssh termux-phone
 ```
 
-Per verificare rapidamente identità e percorso:
+Quickly verify the identity and working directory:
 
 ```bash
 ssh termux-phone 'whoami && hostname && pwd'
 ```
 
-Compila `config.env` partendo da [`config.example.env`](../config.example.env)
-e usa gli obiettivi del `Makefile` per evitare di riscrivere ogni volta host,
-utente e porta.
+Fill in `config.env` from [`config.example.env`](../config.example.env) and use
+the `Makefile` targets to avoid repeating the host, username, and port.
