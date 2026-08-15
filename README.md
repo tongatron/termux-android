@@ -27,6 +27,68 @@ Il tunnel apre una connessione **in uscita** verso Cloudflare: non servono
 port-forwarding sul router, IP pubblico statico o Tailscale. Tailscale è utile
 solo per amministrare il telefono da remoto.
 
+## 1. Prima cosa: collegarsi ad Android via SSH
+
+Questa è la procedura base. Una volta configurato SSH, tutto il resto — deploy,
+log e riavvio dei servizi — si può fare dal Mac/PC.
+
+### Sul telefono Android, in Termux
+
+```bash
+pkg update
+pkg install openssh
+passwd                         # password temporanea per il primo accesso
+sshd                           # avvia il server SSH sulla porta 8022
+whoami                         # annota l'utente Termux
+```
+
+Recupera l'indirizzo del telefono:
+
+- in Wi-Fi: **Impostazioni → Wi-Fi → rete connessa → Indirizzo IP**;
+- con Tailscale: apri l'app e usa l'IP del dispositivo Android.
+
+Tailscale non serve per pubblicare il sito: è solo un canale comodo e stabile
+per amministrare il telefono da remoto.
+
+### Dal Mac/PC: primo accesso
+
+Sostituisci i placeholder con i valori annotati:
+
+```bash
+ssh -p 8022 <utente-termux>@<ip-del-telefono>
+```
+
+Accetta la host key e inserisci la password temporanea. Poi configura una
+chiave SSH, così non dovrai più usare password:
+
+```bash
+test -f ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519
+cat ~/.ssh/id_ed25519.pub | \
+  ssh -p 8022 <utente-termux>@<ip-del-telefono> \
+  'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
+```
+
+### Alias permanente
+
+Nel file `~/.ssh/config` del Mac/PC:
+
+```sshconfig
+Host termux-phone
+    HostName <ip-lan-o-tailscale-del-telefono>
+    Port 8022
+    User <utente-termux>
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Test finale:
+
+```bash
+ssh termux-phone 'whoami && hostname && pwd'
+```
+
+Ora puoi compilare [`config.example.env`](config.example.env), salvarlo come
+`config.env` e usare `make deploy`, `make status`, `make logs` e `make restart`.
+
 ## Cosa c'è in questo progetto
 
 | File | Scopo |
