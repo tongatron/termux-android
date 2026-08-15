@@ -1,23 +1,36 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Eseguito da Termux all'avvio del telefono (~/.termux/boot/start-services su
-# Termux, via il boot-runner integrato nell'app Termux dalla versione
-# 2024.10.24 in poi: non serve piu l'app separata Termux:Boot). Rilancia tutti
-# i demoni che non sopravvivono al riavvio: sshd, web server, sysinfo.sh loop,
-# cloudflared.
+# Run by Termux at phone boot (~/.termux/boot/start-services).
+# Idempotently starts sshd, the web server, the sysinfo loop, and cloudflared.
 #
-# camera-loop.sh e' escluso di proposito: e' fermato su richiesta dal
-# 2026-07-27 (vedi Termolux-android.md, "Loop fotocamera").
+# camera-loop.sh is intentionally excluded: the camera module is optional and
+# is not started by the base workflow.
+
+set -u
 
 termux-wake-lock
-sshd
+mkdir -p "$HOME/www"
 
-setsid nohup python -m http.server 8080 --directory ~/www --bind 127.0.0.1 \
-  < /dev/null > ~/webserver.log 2>&1 &
-disown
+if ! pgrep -x sshd >/dev/null 2>&1; then
+  sshd
+fi
 
-setsid nohup ~/sysinfo.sh loop < /dev/null > ~/sysinfo.log 2>&1 &
-disown
+start_once() {
+  local pattern="$1"
+  local logfile="$2"
+  shift 2
 
-setsid nohup cloudflared tunnel run termux-redmi12 \
-  < /dev/null > ~/cloudflared-termux.log 2>&1 &
-disown
+  if pgrep -f "$pattern" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  setsid nohup "$@" < /dev/null > "$logfile" 2>&1 &
+}
+
+start_once 'python -m http.server 8080' "$HOME/webserver.log" \
+  python -m http.server 8080 --directory "$HOME/www" --bind 127.0.0.1
+
+start_once 'sysinfo.sh loop' "$HOME/sysinfo.log" \
+  "$HOME/sysinfo.sh" loop
+
+start_once 'cloudflared tunnel run termux-redmi12' "$HOME/cloudflared-termux.log" \
+  cloudflared tunnel run termux-redmi12

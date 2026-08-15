@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -64,48 +64,48 @@
 </head>
 <body>
   <div class="card">
-    <span class="badge"><span class="dot" id="dot"></span> <span id="status">caricamento&hellip;</span></span>
+    <span class="badge"><span class="dot" id="dot"></span> <span id="status">loading&hellip;</span></span>
     <h1 id="title">Redmi 12 &middot; Termux</h1>
-    <p class="sub">Servito da un telefono Android, pubblicato via Cloudflare Tunnel.</p>
+    <p class="sub">Served by an Android phone, published through Cloudflare Tunnel.</p>
 
-    <p class="links"><a href="/guida/">&#128218; Guida: come hostare una pagina con Termux</a></p>
+    <p class="links"><a href="/guida/">&#128218; Guide: host a page with Termux</a></p>
 
     <table>
       <tr><td>Host</td><td>termux.tongatron.org</td></tr>
-      <tr><td>Origine</td><td>Termux / python http.server</td></tr>
+      <tr><td>Origin</td><td>Termux / python http.server</td></tr>
       <tr><td>Tunnel</td><td>cloudflared (locale, su Termux)</td></tr>
     </table>
 
-    <h2>Accesso SSH dal Mac</h2>
-    <p class="h2-note">Stessa rete Wi-Fi di casa:</p>
-    <pre class="cmd">ssh -p 8022 &lt;utente&gt;&#64;&lt;ip-del-telefono&gt;</pre>
-    <p class="h2-note">Da fuori casa, con Tailscale attivo su entrambi i lati:</p>
-    <pre class="cmd">ssh -p 8022 &lt;utente&gt;&#64;&lt;ip-tailscale-del-telefono&gt;</pre>
+    <h2>SSH access from a Mac</h2>
+    <p class="h2-note">Same home Wi-Fi network:</p>
+    <pre class="cmd">ssh -p 8022 &lt;termux-user&gt;&#64;&lt;phone-ip&gt;</pre>
+    <p class="h2-note">From outside home, with Tailscale active on both sides:</p>
+    <pre class="cmd">ssh -p 8022 &lt;termux-user&gt;&#64;&lt;phone-tailscale-ip&gt;</pre>
 
-    <h2>Info di sistema</h2>
+    <h2>System information</h2>
     <table id="sysinfo"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
 
-    <h2>Servizi</h2>
+    <h2>Services</h2>
     <table id="services"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
 
-    <h2>Pacchetti chiave</h2>
+    <h2>Key packages</h2>
     <table id="packages"><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table>
 
-    <h2>Privacy &amp; dati</h2>
-    <p class="h2-note">Il server pubblica solo questa pagina statica. Nessuna delle voci sotto viene letta, richiesta o esposta da esso.</p>
+    <h2>Privacy &amp; data</h2>
+    <p class="h2-note">The server publishes only this static page. None of the items below are read, requested, or exposed by it.</p>
     <table>
-      <tr><td class="svc-name">Fotocamera</td><td><span class="tag none">non utilizzata</span></td></tr>
-      <tr><td class="svc-name">Microfono</td><td><span class="tag none">non utilizzato</span></td></tr>
-      <tr><td class="svc-name">Posizione (GPS)</td><td><span class="tag none">non utilizzata</span></td></tr>
-      <tr><td class="svc-name">Contatti</td><td><span class="tag none">non utilizzati</span></td></tr>
-      <tr><td class="svc-name">SMS / chiamate</td><td><span class="tag none">non utilizzati</span></td></tr>
-      <tr><td class="svc-name">File personali (foto, documenti)</td><td><span class="tag none">non esposti</span></td></tr>
-      <tr><td class="svc-name">Sensori (accelerometro, ecc.)</td><td><span class="tag none">non utilizzati</span></td></tr>
-      <tr><td class="svc-name">Indirizzi IP (LAN, Tailscale)</td><td><span class="tag use">pubblicati sopra, per SSH</span></td></tr>
+      <tr><td class="svc-name">Camera</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">Microphone</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">Location (GPS)</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">Contacts</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">SMS / calls</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">Personal files (photos, documents)</td><td><span class="tag none">not exposed</span></td></tr>
+      <tr><td class="svc-name">Sensors (accelerometer, etc.)</td><td><span class="tag none">not used</span></td></tr>
+      <tr><td class="svc-name">IP addresses (LAN, Tailscale)</td><td><span class="tag use">shown above for SSH</span></td></tr>
     </table>
 
     <div class="footer">
-      tongatron.org &middot; raspi-admin fleet<br>
+      tongatron.org &middot; Android server lab<br>
       <span id="generated">&nbsp;</span>
     </div>
   </div>
@@ -131,44 +131,44 @@ async function refresh() {
   try {
     d = await (await fetch("info.json?t=" + Date.now(), { cache: "no-store" })).json();
   } catch {
-    document.getElementById("status").textContent = "dati non disponibili";
+    document.getElementById("status").textContent = "data unavailable";
     document.getElementById("dot").classList.add("stale");
     return;
   }
 
   const dev = d.device || {}, tx = d.termux || {}, mem = d.memory || {}, st = d.storage || {};
   const name = `${dev.manufacturer || ""} ${dev.model || ""}`.trim();
-  document.getElementById("title").textContent = (name || "Telefono") + " · Termux";
+  document.getElementById("title").textContent = (name || "Phone") + " · Termux";
 
-  // sysinfo.sh rigenera ogni 30s: oltre i 120s il dato e considerato fermo.
+  // sysinfo.sh regenerates every 30s: after 120s the data is considered stale.
   const age = (Date.now() - Date.parse(d.generated)) / 1000;
   const stale = !(age < 120);
   document.getElementById("dot").classList.toggle("stale", stale);
-  document.getElementById("status").textContent = stale ? "dati non aggiornati" : "online";
+  document.getElementById("status").textContent = stale ? "data is stale" : "online";
   document.getElementById("generated").textContent =
-    "Aggiornato " + new Date(d.generated).toLocaleString("it-IT");
+    "Updated " + new Date(d.generated).toLocaleString("en-GB");
 
   const b = d.battery;
   rows("sysinfo", [
-    ["Dispositivo", esc(name)],
+    ["Device", esc(name)],
     ["Android", esc(dev.android) + (dev.security_patch ? ` <span style="color:#6e7681">(patch ${esc(dev.security_patch)})</span>` : "")],
     ["Kernel", esc(dev.kernel)],
-    ["Architettura", esc(dev.arch) + (dev.cpus ? ` &middot; ${dev.cpus} core` : "")],
-    ["Utente Termux", esc(tx.user)],
+    ["Architecture", esc(dev.arch) + (dev.cpus ? ` &middot; ${dev.cpus} cores` : "")],
+    ["Termux user", esc(tx.user)],
     ["Uptime", esc(tx.uptime)],
     ["Load average", esc(tx.load)],
-    ["Memoria", `${(mem.used_b / GB).toFixed(1)} / ${(mem.total_b / GB).toFixed(1)} GB` + bar(mem.used_b, mem.total_b)],
+    ["Memory", `${(mem.used_b / GB).toFixed(1)} / ${(mem.total_b / GB).toFixed(1)} GB` + bar(mem.used_b, mem.total_b)],
     ["Storage", `${esc(st.used)} / ${esc(st.total)} (${esc(st.use_pct)})`],
-    ["Batteria", b ? `${esc(b.percentage)}% &middot; ${esc(b.status)}` : null],
+    ["Battery", b ? `${esc(b.percentage)}% &middot; ${esc(b.status)}` : null],
   ]);
 
   const svc = d.services || {};
-  const on = v => v ? '<span class="tag public">attivo</span>' : '<span class="tag off">fermo</span>';
+  const on = v => v ? '<span class="tag public">active</span>' : '<span class="tag off">stopped</span>';
   rows("services", [
-    ["SSH (porta 8022)", on(svc.sshd)],
-    ["Web server (porta 8080)", on(svc.webserver)],
+    ["SSH (port 8022)", on(svc.sshd)],
+    ["Web server (port 8080)", on(svc.webserver)],
     ["Cloudflare Tunnel", on(svc.cloudflared)],
-    ["Loop fotocamera", on(svc.camera)],
+    ["Camera loop", on(svc.camera)],
   ]);
 
   rows("packages", Object.entries(d.packages || {}).map(([k, v]) => [k, esc(v)]));

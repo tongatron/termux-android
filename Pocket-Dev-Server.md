@@ -1,155 +1,148 @@
 # Pocket Dev Server
 
-> Documento di visione e architettura.
-> Revisione del draft iniziale con vincoli tecnici reali di Android/Termux,
-> sezione sicurezza e roadmap a fasi.
+> Vision and architecture document.
+> Revised from the initial draft with real Android/Termux constraints,
+> security requirements, and a phased roadmap.
 
 ---
 
-## Visione
+## Vision
 
-**Pocket Dev Server** è una dashboard web che trasforma uno smartphone Android
-con **Termux** in un piccolo server Linux portatile.
+**Pocket Dev Server** is a web dashboard that turns an Android smartphone with
+**Termux** into a small, portable Linux server.
 
-L'obiettivo è offrire un'interfaccia grafica semplice ma potente per gestire
-progetti, servizi, file e strumenti di sviluppo direttamente dal browser,
-evitando di lavorare esclusivamente dal terminale.
+The goal is a simple but powerful browser interface for managing projects,
+services, files, and development tools directly on the phone, without relying
+exclusively on a terminal.
 
-Il valore del progetto non è "un terminale nel browser" — ne esistono molti — ma
-**il pannello di controllo del proprio telefono-server**: un dispositivo
-riciclato che resta acceso, sempre raggiungibile, e che si amministra da
-qualsiasi altro schermo di casa.
+The value is not “a terminal in the browser” — many of those already exist —
+but **a control panel for your own phone-server**: a recycled device that stays
+available and can be administered from any other screen at home.
 
-## Obiettivi
+## Goals
 
-- Rendere Termux accessibile anche tramite GUI.
-- Gestire più progetti contemporaneamente.
-- Amministrare servizi locali e remoti.
-- Offrire un ambiente di sviluppo sempre disponibile.
-- Integrare le funzionalità native di Android tramite Termux:API.
+- Make Termux accessible through a GUI.
+- Manage multiple projects at the same time.
+- Administer local and remote services.
+- Provide an always-available development environment.
+- Integrate native Android capabilities through Termux:API.
 
-## Vincoli di progetto
+## Project constraints
 
-Questi non sono dettagli implementativi: sono requisiti che decidono se il
-progetto è utilizzabile o no.
+These are not implementation details. They determine whether the project is
+actually usable.
 
-1. **Sicuro per default.** Il pannello esegue comandi arbitrari. Non deve mai
-   essere raggiungibile senza autenticazione. Vedi [Sicurezza](#sicurezza).
-2. **Leggero.** Il pannello non deve mangiarsi le risorse che dovrebbe mettere a
-   disposizione dei progetti ospitati. Budget indicativo: **< 100 MB di RAM** a
-   riposo per backend + frontend.
-3. **Sopravvive ad Android.** Doze mode, ottimizzazione batteria e OOM killer
-   sono il motivo numero uno per cui questi progetti smettono di funzionare dopo
-   due giorni. Vedi [Sopravvivenza su Android](#sopravvivenza-su-android).
-4. **Ogni azione è un endpoint HTTP documentato.** Nessuna logica solo lato
-   frontend. È la condizione che rende possibili automazioni e AI assistant più
-   avanti, senza riscrivere niente.
+1. **Secure by default.** The dashboard executes arbitrary commands. It must
+   never be reachable without authentication. See [Security](#security).
+2. **Lightweight.** The dashboard must not consume the resources intended for
+   hosted projects. Indicative budget: **less than 100 MB of idle RAM** for
+   backend plus frontend.
+3. **Survive Android.** Doze mode, battery optimization, and the OOM killer are
+   the main reasons these projects stop working after two days. See [Surviving
+   Android](#surviving-android).
+4. **Every action is a documented HTTP endpoint.** No frontend-only logic. This
+   enables automation and future AI assistants without a rewrite.
 
 ---
 
-# Sicurezza
+# Security
 
-Il pannello espone, in un unico servizio: esecuzione di comandi arbitrari, un
-file manager con upload, e accesso ai repository git. Senza autenticazione non è
-un dev server, è una shell remota aperta a chiunque si trovi sulla stessa rete
-Wi-Fi.
+The dashboard exposes arbitrary command execution, a file manager with upload,
+and Git repository access in one service. Without authentication it is not a
+development server; it is a remote shell open to anyone on the same Wi-Fi.
 
-**Requisiti non negoziabili:**
+**Non-negotiable requirements:**
 
-- **Bind su `127.0.0.1` di default.** L'ascolto su `0.0.0.0` è una scelta
-  esplicita dell'utente, non il comportamento predefinito.
-- **Autenticazione obbligatoria.** Token o password, richiesta anche in LAN. Il
-  servizio non deve poter partire senza una credenziale configurata.
-- **Nessuna porta aperta sul router.** L'accesso da fuori casa passa
-  esclusivamente per un tunnel (Cloudflare Tunnel, Tailscale). Il port
-  forwarding non è una modalità supportata.
-- **HTTPS** quando l'accesso non è su loopback.
-- **Sessioni con scadenza** e revoca dei token.
-- **Log degli accessi e dei comandi eseguiti**, consultabili dal pannello.
+- **Bind to `127.0.0.1` by default.** Listening on `0.0.0.0` must be an explicit
+  user choice, never the default.
+- **Authentication is mandatory.** Use a token or password, including on the
+  LAN. The service must not start without configured credentials.
+- **No router port forwarding.** Remote access must use a tunnel (Cloudflare
+  Tunnel or Tailscale). Port forwarding is not a supported mode.
+- **HTTPS** whenever access is not loopback-only.
+- **Expiring sessions** and token revocation.
+- **Access and command logs** visible in the dashboard.
 
-Il terminale web e il file manager sono, di fatto, privilegi pieni sull'account
-Termux: vanno trattati con la stessa serietà di una chiave SSH.
+The web terminal and file manager effectively provide full privileges for the
+Termux account. Treat them with the same care as an SSH key.
 
 ---
 
-# Sopravvivenza su Android
+# Surviving Android
 
-Perché il server sia davvero "sempre disponibile" servono, oltre a Termux:Boot:
+For a server to be genuinely “always available”, Termux:Boot alone is not
+enough:
 
-- **Wakelock di Termux** attivo (`termux-wake-lock`), altrimenti il processo
-  viene sospeso a schermo spento.
-- **Esclusione dall'ottimizzazione batteria** per Termux e Termux:Boot, dalle
-  impostazioni Android.
-- **Avvio automatico al boot** tramite Termux:Boot (script già presente:
-  [boot-start-services.sh](boot-start-services.sh)).
-- **Riavvio automatico dei servizi** dopo un OOM kill, con backoff.
-- **Consumo contenuto**: polling delle metriche a intervalli ragionevoli
-  (secondi, non decimi di secondo), WebSocket unico e condiviso invece di
-  polling HTTP ripetuto.
+- **Termux wake lock** enabled (`termux-wake-lock`), otherwise the process may
+  be suspended when the screen is off;
+- **battery optimization excluded** for Termux and Termux:Boot in Android
+  settings;
+- **automatic boot startup** through Termux:Boot (the ready-to-use script is
+  [`boot-start-services.sh`](boot-start-services.sh));
+- **automatic service restart** after an OOM kill, with backoff;
+- **low overhead**: poll metrics at sensible intervals (seconds, not tenths of
+  a second) and use one shared WebSocket instead of repeated HTTP polling.
 
-Vale la pena documentare anche il comportamento atteso a batteria scarica: sotto
-una certa soglia il pannello dovrebbe ridurre la frequenza di aggiornamento
-invece di continuare come se nulla fosse.
+Document the low-battery behavior too: below a threshold, the dashboard should
+reduce its refresh rate instead of behaving as if nothing changed.
 
 ---
 
-# Funzionalità
+# Features
 
 ## Dashboard
 
-Visualizzazione in tempo reale di:
+Real-time display of:
 
 - CPU
 - RAM
-- Batteria
-- Temperatura
-- Memoria disponibile
+- Battery
+- Temperature
+- Available storage
 - Uptime
-- Connessione di rete
-- Indirizzi IP
-- Stato dei servizi
+- Network connection
+- IP addresses
+- Service status
 
-Base di partenza già presente: [sysinfo.sh](sysinfo.sh).
+Existing starting point: [`sysinfo.sh`](sysinfo.sh).
 
-## Gestione Processi
+## Process management
 
-- Avvio
-- Arresto
-- Riavvio
-- Log live
-- Utilizzo CPU e memoria
-- Auto-restart
+- Start
+- Stop
+- Restart
+- Live logs
+- CPU and memory usage
+- Automatic restart
 
-**Decisione architetturale da prendere prima di scrivere codice:** o la
-dashboard è un frontend per **PM2** (e allora auto-restart, log e persistenza
-sono responsabilità di PM2, il pannello li legge e basta), oppure si scrive un
-supervisor proprio e **PM2 esce dall'architettura**. Avere entrambi significa
-non sapere mai chi possiede un processo.
+**Architectural decision required before coding:** either the dashboard is a
+frontend for **PM2** — in which case PM2 owns restart, logs, and persistence —
+or a custom supervisor is written and **PM2 is removed from the architecture**.
+Having both means no one knows which component owns a process.
 
-Raccomandazione: PM2 in v1, perché risolve già auto-restart, log rotation e
-ripristino al boot senza scrivere niente. Un supervisor proprio si valuta solo
-se PM2 si rivela troppo pesante sul device.
+Recommendation: PM2 for v1, because it already solves automatic restart, log
+rotation, and boot recovery. Evaluate a custom supervisor only if PM2 proves too
+heavy for the device.
 
-## File Manager
+## File manager
 
-- Editor di testo integrato
-- Upload e download
-- Ricerca
-- Anteprima immagini e PDF
-- Drag & Drop
+- Integrated text editor
+- Upload and download
+- Search
+- Image and PDF preview
+- Drag and drop
 
-**Sull'editor:** Monaco (il motore di VS Code) pesa alcuni MB e presuppone mouse
-e tastiera fisica; su touch l'esperienza di editing è scadente. Su un telefono
-riciclato — cioè esattamente il caso d'uso del progetto — è la scelta sbagliata.
-**CodeMirror 6** copre il 90% delle esigenze con una frazione del peso ed è
-progettato per il touch.
+**Editor choice:** Monaco (the VS Code engine) weighs several megabytes and
+assumes a mouse and physical keyboard; on touch, editing is poor. For a reused
+phone — exactly this project's use case — it is the wrong choice. **CodeMirror
+6** covers most needs at a fraction of the weight and is designed for touch.
 
-## Terminale
+## Terminal
 
-- Più terminali contemporanei
-- Temi
-- Cronologia
-- Scorciatoie da tastiera
+- Multiple concurrent terminals
+- Themes
+- History
+- Keyboard shortcuts
 
 ## Git
 
@@ -158,33 +151,33 @@ progettato per il touch.
 - Pull
 - Branch
 - Diff
-- Cronologia
+- History
 
-## Gestione Progetti
+## Project management
 
-Ogni cartella viene riconosciuta come progetto.
+Every folder is recognized as a project.
 
-Esempio:
+Example:
 
-``` text
+```text
 🌍 Astri
-▶ Avvia
-⟳ Riavvia
-📜 Log
-🌐 Apri
+▶ Start
+⟳ Restart
+📜 Logs
+🌐 Open
 
 📚 Librario
 ▶ Build
 ▶ Deploy
 
 🤖 Telegram Bot
-▶ Avvia
-📈 Stato
+▶ Start
+📈 Status
 ```
 
-## One Click Apps
+## One-click apps
 
-Il sistema riconosce automaticamente il tipo di progetto.
+The system automatically detects the project type.
 
 ### Node.js
 
@@ -199,60 +192,59 @@ Il sistema riconosce automaticamente il tipo di progetto.
 - flask
 - fastapi
 
-### Static Site
+### Static site
 
-- Anteprima
+- Preview
 - Build
 - Deploy
 
-### Docker — non disponibile in locale
+### Docker — not available locally
 
-**Docker non può girare su Termux.** Richiede privilegi di root e feature del
-kernel (namespaces, cgroups) che Android non espone. `docker compose up` come
-comando locale è irrealizzabile e va tolto dalle One Click Apps.
+**Docker cannot run natively in Termux.** It requires root privileges and
+kernel features (namespaces and cgroups) that Android does not expose.
+`docker compose up` as a local command is not realistic and should be removed
+from the one-click apps.
 
-Resta invece sensato il **controllo di un Docker remoto** (Raspberry Pi, NAS,
-VPS) via API: quella è un'integrazione, non una funzionalità locale. Vedi
-[Possibili Integrazioni](#possibili-integrazioni).
+Controlling a remote Docker host (Raspberry Pi, NAS, or VPS) through an API is
+still sensible: that is an integration, not a local feature. See [Possible
+integrations](#possible-integrations).
 
-## Android Integration
+## Android integration
 
-Grazie a Termux:API:
+Through Termux:API:
 
-- Notifiche
+- Notifications
 - Clipboard
-- Vibrazione
-- Text-to-Speech
-- Speech-to-Text
-- Condivisione file
-- GPS, fotocamera, sensori
+- Vibration
+- Text-to-speech
+- Speech-to-text
+- File sharing
+- GPS, camera, and sensors
 
-**Nota di scope:** notifiche, clipboard e condivisione file servono direttamente
-il caso d'uso "amministro il mio server" — le notifiche in particolare sono
-preziose (servizio caduto, build finita, batteria bassa). Fotocamera, GPS e
-sensori sono divertenti ma ortogonali all'idea di dev server: vanno tenuti fuori
-dal nucleo e trattati come plugin opzionali, per non far crescere il progetto in
-direzioni che non servono. Materiale già presente in questa direzione:
-[camera.html](camera.html), [camera-loop.sh](camera-loop.sh).
+**Scope note:** notifications, clipboard, and file sharing directly support the
+“administer my server” use case. Notifications are particularly valuable for a
+failed service, completed build, or low battery. Camera, GPS, and sensors are
+interesting but orthogonal to the development-server idea: keep them out of the
+core and treat them as optional plugins. Existing material in that direction:
+[`camera.html`](camera.html), [`camera-loop.sh`](camera-loop.sh).
 
-## AI Assistant
+## AI assistant
 
-Un assistente integrato capace di comprendere richieste come:
+An integrated assistant could understand requests such as:
 
-- "Riavvia il server Fastify."
-- "Mostrami gli errori degli ultimi 10 minuti."
-- "Perché il container è fermo?"
-- "Esegui git pull e riavvia il progetto."
+- “Restart the Fastify server.”
+- “Show me the errors from the last 10 minutes.”
+- “Why is the container stopped?”
+- “Run git pull and restart the project.”
 
-**Collocazione nella roadmap:** è la feature più interessante ed è anche quella
-che dipende da tutto il resto. Va affrontata **per ultima**. Se si rispetta il
-vincolo "ogni azione è un endpoint HTTP documentato", l'assistente si riduce a
-esporre quegli endpoint come tool e arriva quasi gratis. Se lo si affronta
-presto, lo si scrive due volte.
+**Roadmap position:** this is the most interesting feature and also the one
+that depends on everything else. It should come **last**. If every action is a
+documented HTTP endpoint, the assistant only needs to expose those endpoints as
+tools and arrives almost for free. Building it early means building it twice.
 
-## Possibili Integrazioni
+## Possible integrations
 
-- Docker remoto (via API)
+- Remote Docker (API)
 - Raspberry Pi
 - Home Assistant
 - MQTT
@@ -263,21 +255,21 @@ presto, lo si scrive due volte.
 
 ---
 
-# Architettura Tecnica
+# Technical architecture
 
 ## Backend
 
 - Node.js + Fastify
-- WebSocket (canale unico condiviso per le metriche live)
-- SQLite per la configurazione e lo storico
-- PM2 come supervisor dei processi progetto
+- WebSocket (one shared channel for live metrics)
+- SQLite for configuration and history
+- PM2 as the project process supervisor
 
 ## Frontend
 
 - HTML
 - Bootstrap
 - JavaScript
-- CodeMirror 6 come editor
+- CodeMirror 6 as the editor
 
 ## Android
 
@@ -289,59 +281,57 @@ presto, lo si scrive due volte.
 
 # Roadmap
 
-Il draft iniziale metteva sullo stesso piano dashboard, terminale, git, AI, GPS,
-fotocamera, MQTT ed ESP32. Così non è pianificabile. Questa è la scomposizione
-proposta.
+The initial draft treated the dashboard, terminal, Git, AI, GPS, camera, MQTT,
+and ESP32 as equal priorities. That is not plan­ning. The proposed breakdown is:
 
-## v1 — il nucleo minimo
+## v1 — the minimum core
 
-Delimitata, e da usare davvero per qualche settimana prima di aggiungere altro.
+Small enough to use for several weeks before adding anything else.
 
-- Autenticazione (token) e bind su loopback per default
-- Dashboard sysinfo in tempo reale
-- Elenco progetti (una cartella = un progetto)
-- Avvio / arresto / riavvio di un progetto
-- Log live
-- Avvio automatico al boot, con wakelock
+- Token authentication and loopback binding by default
+- Real-time sysinfo dashboard
+- Project list (one folder = one project)
+- Start / stop / restart a project
+- Live logs
+- Boot startup with a wake lock
 
-Al termine della v1 il progetto deve essere già utile da solo. Se non lo è, il
-problema non si risolve aggiungendo feature.
+At the end of v1, the project must already be useful on its own. If it is not,
+adding features will not solve the problem.
 
-## v2 — lavorare dal pannello
+## v2 — work from the dashboard
 
-- File manager con editor CodeMirror
-- Terminale web
-- Git: stato, commit, pull, push
-- Notifiche Android sugli eventi (servizio caduto, build finita)
+- File manager with a CodeMirror editor
+- Web terminal
+- Git: status, commit, pull, push
+- Android notifications for events (service down, build complete)
 
-## v3 — automazione
+## v3 — automation
 
-- One Click Apps per tipo di progetto rilevato
-- Accesso da remoto via tunnel
-- Integrazioni esterne (Docker remoto, MQTT, Home Assistant)
+- One-click apps for detected project types
+- Remote access through a tunnel
+- External integrations (remote Docker, MQTT, Home Assistant)
 
-## v4 — assistente
+## v4 — assistant
 
-- AI Assistant sopra gli endpoint già esistenti
-
----
-
-# Filosofia
-
-Pocket Dev Server vuole essere il pannello di controllo personale di uno
-sviluppatore, capace di trasformare uno smartphone inutilizzato in un server
-Linux sempre disponibile.
-
-Più che un semplice terminale web, punta a diventare un ecosistema per sviluppo,
-automazione e amministrazione, con un'interfaccia moderna e modulare — ma con la
-disciplina di restare leggero, sicuro e realmente sempre acceso, che sono le tre
-cose che decidono se un progetto del genere viene usato o abbandonato.
+- AI assistant on top of the existing endpoints
 
 ---
 
-## Documenti collegati
+# Philosophy
 
-- [come-hostare-una-pagina-con-termux.md](come-hostare-una-pagina-con-termux.md) — guida pratica al primo server statico
-- [Termolux-android.md](Termolux-android.md) — appunti generali su Termux
-- [boot-start-services.sh](boot-start-services.sh) — avvio dei servizi al boot
-- [sysinfo.sh](sysinfo.sh) — metriche di sistema, base per la dashboard
+Pocket Dev Server aims to be a developer's personal control panel, turning an
+unused smartphone into an always-available Linux server.
+
+More than a simple web terminal, it should become an ecosystem for development,
+automation, and administration, with a modern modular interface — while
+remaining lightweight, secure, and genuinely available. Those are the three
+properties that determine whether a project like this gets used or abandoned.
+
+---
+
+## Related documents
+
+- [README.md](README.md) — public overview and quick start
+- [docs/01-installazione.md](docs/01-installazione.md) — installation guide
+- [boot-start-services.sh](boot-start-services.sh) — boot service launcher
+- [sysinfo.sh](sysinfo.sh) — system metrics, the dashboard starting point

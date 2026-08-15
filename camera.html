@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fotocamera &middot; termux.tongatron.org</title>
+<title>Camera &middot; termux.tongatron.org</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -56,16 +56,16 @@
 <body>
   <div class="wrap">
     <a class="back" href="/">&larr; termux.tongatron.org</a>
-    <h1>Fotocamera frontale</h1>
-    <p class="sub">Uno scatto ogni <span id="interval">10</span> secondi. In pagina restano gli ultimi <span id="keep">30</span>.</p>
-    <span class="badge"><span class="dot" id="dot"></span> <span id="status">caricamento&hellip;</span></span>
+    <h1>Front camera</h1>
+    <p class="sub">One shot every <span id="interval">10</span> seconds. The page keeps the latest <span id="keep">30</span>.</p>
+    <span class="badge"><span class="dot" id="dot"></span> <span id="status">loading&hellip;</span></span>
 
     <div id="warn" class="warn" hidden></div>
     <div id="grid" class="grid"></div>
     <div id="empty" class="empty" hidden></div>
 
     <div class="footer">
-      Le immagini restano solo sul telefono, sostituite a rotazione.<br>
+      Images stay on the phone and are rotated out.<br>
       <span id="updated">&nbsp;</span>
     </div>
   </div>
@@ -79,11 +79,11 @@ async function refresh() {
   try {
     d = await (await fetch("shots.json?t=" + Date.now(), { cache: "no-store" })).json();
   } catch {
-    $("status").textContent = "loop fotocamera non avviato";
+    $("status").textContent = "camera loop not started";
     $("dot").classList.add("stale");
     $("grid").innerHTML = "";
     $("empty").hidden = false;
-    $("empty").textContent = "Nessun manifest: lo script camera-loop.sh non e ancora in esecuzione sul telefono.";
+    $("empty").textContent = "No manifest: camera-loop.sh is not running on the phone.";
     return;
   }
 
@@ -91,18 +91,18 @@ async function refresh() {
   $("keep").textContent = d.keep ?? 30;
 
   const shots = d.shots || [];
-  // Il loop riscrive il manifest a ogni giro: oltre 3 intervalli e fermo.
+  // The loop rewrites the manifest every cycle: after 3 intervals it is stale.
   const age = (Date.now() - Date.parse(d.updated)) / 1000;
   const stale = !(age < (d.interval_s || 10) * 3);
   $("dot").classList.toggle("stale", stale);
   $("status").textContent = stale
-    ? "loop fermo"
-    : `${shots.length} scatti · backend ${d.backend || "?"}`;
-  $("updated").textContent = "Ultimo aggiornamento " + new Date(d.updated).toLocaleString("it-IT");
+    ? "loop stopped"
+    : `${shots.length} shots · backend ${d.backend || "?"}`;
+  $("updated").textContent = "Last updated " + new Date(d.updated).toLocaleString("en-GB");
 
   if (d.last_error) {
     $("warn").hidden = false;
-    $("warn").innerHTML = "Ultimo scatto non riuscito: <code>" + esc(d.last_error) + "</code>";
+    $("warn").innerHTML = "Last shot failed: <code>" + esc(d.last_error) + "</code>";
   } else {
     $("warn").hidden = true;
   }
@@ -110,14 +110,14 @@ async function refresh() {
   if (!shots.length) {
     $("grid").innerHTML = "";
     $("empty").hidden = false;
-    $("empty").textContent = "Ancora nessuno scatto disponibile.";
+    $("empty").textContent = "No shots available yet.";
     return;
   }
 
   $("empty").hidden = true;
   $("grid").innerHTML = shots.map((s, i) => `
     <figure${i === 0 ? ' class="latest"' : ""}>
-      <img src="${esc(s.file)}" alt="Scatto delle ${esc(s.ts)}" loading="lazy">
+      <img src="${esc(s.file)}" alt="Shot at ${esc(s.ts)}" loading="lazy">
       <figcaption><span>${esc(s.ts)}</span><span class="n">#${i + 1}</span></figcaption>
     </figure>`).join("");
 }
