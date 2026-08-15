@@ -1,133 +1,134 @@
 # Termux Android Lab
 
-Un esperimento pubblico: usare uno smartphone Android come piccolo server web,
-servire un sito statico da Termux e pubblicarlo su Internet con un dominio vero.
+A public experiment: using an Android smartphone as a small web server, serving
+a static site from Termux, and publishing it on the Internet with a real domain.
 
-## Demo pubblica
+## Public demo
 
-**Sito:** [termux.tongatron.org](https://termux.tongatron.org/)
+**Site:** [termux.tongatron.org](https://termux.tongatron.org/)
 
-La demo è servita da un Redmi 12. La pagina mostra lo stato del dispositivo e
-dei servizi, ma il principio è generale: al posto di questa pagina puoi
-pubblicare un portfolio, una documentazione, una dashboard o un sito statico.
+The demo is served by a Redmi 12. It shows the device and service status, but
+the approach is general: replace this page with a portfolio, documentation,
+dashboard, or any other static site.
 
-> Questo è un laboratorio didattico, non un hosting professionale. Android può
-> sospendere o terminare Termux, la rete mobile può cambiare e il telefono può
-> essere spento.
+> This is a learning lab, not professional hosting. Android may suspend or
+> terminate Termux, the network may change, and the phone may be switched off.
 
-## L'idea in una riga
+## The idea in one line
 
 ```text
-Browser → Cloudflare → Cloudflare Tunnel → cloudflared su Android
+Browser → Cloudflare → Cloudflare Tunnel → cloudflared on Android
                                       → 127.0.0.1:8080
                                       → Python http.server → ~/www
 ```
 
-Il tunnel apre una connessione **in uscita** verso Cloudflare: non servono
-port-forwarding sul router, IP pubblico statico o Tailscale. Tailscale è utile
-solo per amministrare il telefono da remoto.
+The tunnel opens an **outbound** connection to Cloudflare: no router
+port-forwarding, static public IP, or Tailscale is required. Tailscale is only
+useful for administering the phone remotely.
 
-## 1. Prima cosa: collegarsi ad Android via SSH
+## 1. First step: connect to Android over SSH
 
-Questa è la procedura base. Una volta configurato SSH, tutto il resto — deploy,
-log e riavvio dei servizi — si può fare dal Mac/PC.
+This is the foundation. Once SSH is configured, deployment, logs, and service
+restarts can all be handled from a Mac or PC.
 
-### Sul telefono Android, in Termux
+### On the Android phone, in Termux
 
 ```bash
 pkg update
 pkg install openssh
-passwd                         # password temporanea per il primo accesso
-sshd                           # avvia il server SSH sulla porta 8022
-whoami                         # annota l'utente Termux
+passwd                         # temporary password for the first login
+sshd                           # starts SSH on port 8022
+whoami                         # note the Termux username
 ```
 
-Recupera l'indirizzo del telefono:
+Find the phone's address:
 
-- in Wi-Fi: **Impostazioni → Wi-Fi → rete connessa → Indirizzo IP**;
-- con Tailscale: apri l'app e usa l'IP del dispositivo Android.
+- Wi-Fi: **Settings → Wi-Fi → connected network → IP address**;
+- Tailscale: open the app and use the Android device's address.
 
-Tailscale non serve per pubblicare il sito: è solo un canale comodo e stabile
-per amministrare il telefono da remoto.
+Tailscale is not needed to publish the site. It is simply a convenient, stable
+channel for remote administration.
 
-### Dal Mac/PC: primo accesso
+### From the Mac/PC: first login
 
-Sostituisci i placeholder con i valori annotati:
+Replace the placeholders with the values you noted:
 
 ```bash
-ssh -p 8022 <utente-termux>@<ip-del-telefono>
+ssh -p 8022 <termux-user>@<phone-ip>
 ```
 
-Accetta la host key e inserisci la password temporanea. Poi configura una
-chiave SSH, così non dovrai più usare password:
+Accept the host key and enter the temporary password. Then install an SSH key
+so that future logins do not require a password:
 
 ```bash
 test -f ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519
 cat ~/.ssh/id_ed25519.pub | \
-  ssh -p 8022 <utente-termux>@<ip-del-telefono> \
+  ssh -p 8022 <termux-user>@<phone-ip> \
   'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys; chmod 600 ~/.ssh/authorized_keys'
 ```
 
-### Alias permanente
+### Permanent SSH alias
 
-Nel file `~/.ssh/config` del Mac/PC:
+Add this to `~/.ssh/config` on the Mac/PC:
 
 ```sshconfig
 Host termux-phone
-    HostName <ip-lan-o-tailscale-del-telefono>
+    HostName <phone-lan-or-tailscale-ip>
     Port 8022
-    User <utente-termux>
+    User <termux-user>
     IdentityFile ~/.ssh/id_ed25519
 ```
 
-Test finale:
+Final test:
 
 ```bash
 ssh termux-phone 'whoami && hostname && pwd'
 ```
 
-Ora puoi compilare [`config.example.env`](config.example.env), salvarlo come
-`config.env` e usare `make deploy`, `make status`, `make logs` e `make restart`.
+Now fill in [`config.example.env`](config.example.env), save it as
+`config.env`, and use `make deploy`, `make status`, `make logs`, and
+`make restart`.
 
-## Cosa c'è in questo progetto
+## What is in this project
 
-| File | Scopo |
+| File | Purpose |
 | --- | --- |
-| [`index.html`](index.html) | pagina principale della demo |
-| [`guida.html`](guida.html) | guida web consultabile dal sito |
-| [`boot-start-services.sh`](boot-start-services.sh) | avvio dei servizi dopo il boot |
-| [`sysinfo.sh`](sysinfo.sh) | genera i dati di stato del dispositivo |
-| [`camera.html`](camera.html) | pagina opzionale per il modulo fotocamera |
-| [`come-hostare-una-pagina-con-termux.md`](come-hostare-una-pagina-con-termux.md) | procedura passo-passo |
-| [`Pocket-Dev-Server.md`](Pocket-Dev-Server.md) | appunti sul telefono come server tascabile |
+| [`index.html`](index.html) | main demo page |
+| [`guida.html`](guida.html) | web-accessible guide |
+| [`boot-start-services.sh`](boot-start-services.sh) | starts services after boot |
+| [`sysinfo.sh`](sysinfo.sh) | generates device status data |
+| [`camera.html`](camera.html) | optional camera module page |
+| [`come-hostare-una-pagina-con-termux.md`](come-hostare-una-pagina-con-termux.md) | step-by-step guide |
+| [`Pocket-Dev-Server.md`](Pocket-Dev-Server.md) | notes on using a phone as a pocket server |
 
-Le note operative con indirizzi e dettagli della rete locale restano escluse
-dal repository pubblico.
+Operational notes containing local addresses and network details are kept out
+of the public repository.
 
-## Workflow consigliato
+## Recommended workflow
 
-La repo è organizzata per separare il “cosa” dal “come”:
+The repository separates the explanation from the repeatable operations:
 
-| Percorso | Contenuto |
+| Path | Contents |
 | --- | --- |
-| [`docs/`](docs/) | how-to diviso per installazione, SSH, hosting, autostart e diagnosi |
-| [`scripts/`](scripts/) | comandi ripetibili per bootstrap, deploy, stato, log e restart |
-| [`config.example.env`](config.example.env) | configurazione SSH da copiare in `config.env` |
-| [`Makefile`](Makefile) | interfaccia breve per usare gli script dal computer |
+| [`docs/`](docs/) | how-to guides for installation, SSH, hosting, autostart, and troubleshooting |
+| [`scripts/`](scripts/) | repeatable bootstrap, deploy, status, log, and restart commands |
+| [`config.example.env`](config.example.env) | SSH configuration template to copy to `config.env` |
+| [`Makefile`](Makefile) | short command interface for the computer |
 
-Dal Mac/PC il ciclo quotidiano diventa:
+The daily Mac/PC workflow becomes:
 
 ```bash
-cp config.example.env config.env   # una sola volta: inserisci host e utente
-make check                          # controlla gli script
-make deploy                         # pubblica il sito su Termux
-make status                         # verifica i servizi
-make logs                           # legge il log del tunnel
+cp config.example.env config.env   # once: enter host and username
+make check                          # validate the scripts
+make deploy                         # publish the site to Termux
+make status                         # check the services
+make logs                           # read the tunnel log
 ```
 
-Per il percorso completo, parti da [`docs/01-installazione.md`](docs/01-installazione.md).
+For the complete path, start with
+[`docs/01-installazione.md`](docs/01-installazione.md).
 
-## Avvio rapido: server locale
+## Quick start: local web server
 
 In Termux:
 
@@ -140,75 +141,75 @@ cp index.html ~/www/
 python -m http.server 8080 --directory ~/www --bind 127.0.0.1
 ```
 
-Il sito è ora disponibile localmente sul telefono:
+The site is now available locally on the phone:
 
 ```bash
 curl -I http://127.0.0.1:8080/
 ```
 
-Il binding su `127.0.0.1` è intenzionale: il server non è esposto direttamente
-alla rete locale. Sarà `cloudflared` a fare da unico punto di pubblicazione.
+Binding to `127.0.0.1` is intentional: the server is not directly exposed to
+the local network. `cloudflared` is the only public entry point.
 
-## Pubblicazione con Cloudflare Tunnel
+## Publish with Cloudflare Tunnel
 
-Per una prova veloce si può usare un URL casuale:
+For a quick test, use a random temporary URL:
 
 ```bash
 pkg install cloudflared
 cloudflared tunnel --url http://127.0.0.1:8080
 ```
 
-Per un dominio stabile si usa un **named tunnel**. La configurazione minima è:
+For a stable domain, use a **named tunnel**. The minimum configuration is:
 
 ```yaml
 tunnel: <tunnel-id>
 credentials-file: /data/data/com.termux/files/home/.cloudflared/<tunnel-id>.json
 
 ingress:
-  - hostname: esempio.tuodominio.it
+  - hostname: example.yourdomain.com
     service: http://127.0.0.1:8080
   - service: http_status:404
 ```
 
-Poi si collega il DNS e si avvia il tunnel:
+Connect the DNS record and start the tunnel:
 
 ```bash
-cloudflared tunnel route dns <nome-tunnel> esempio.tuodominio.it
-cloudflared tunnel run <nome-tunnel>
+cloudflared tunnel route dns <tunnel-name> example.yourdomain.com
+cloudflared tunnel run <tunnel-name>
 ```
 
-Le credenziali del tunnel sono private: non vanno committate, pubblicate o
-inserite nei log dell'articolo.
+Tunnel credentials are private: never commit or publish them, and do not put
+them in article logs.
 
-## Avvio automatico dopo il riavvio
+## Automatic startup after reboot
 
-Il progetto usa uno script unico che avvia `sshd`, il server Python, il loop di
-stato e `cloudflared`:
+The project uses one script to start `sshd`, the Python server, the status loop,
+and `cloudflared`:
 
 ```bash
 mkdir -p ~/.termux/boot
 chmod +x ~/.termux/boot/start-services
 ```
 
-Il file deve essere copiato in `~/.termux/boot/start-services`; il modello è
+Copy the file to `~/.termux/boot/start-services`; the template is
 [`boot-start-services.sh`](boot-start-services.sh).
 
-Su Termux dal Google Play Store la funzione di boot è integrata nell'app
-principale. Nelle installazioni F-Droid/GitHub occorre installare l'add-on
-[Termux:Boot](https://github.com/termux/termux-boot) e aprirlo una volta.
+On Termux from Google Play, boot support is integrated into the main app. On
+F-Droid/GitHub installations, install the
+[Termux:Boot](https://github.com/termux/termux-boot) add-on and open it once.
 
-Su Xiaomi/MIUI sono inoltre indispensabili:
+On Xiaomi/MIUI, also enable:
 
 ```text
-Impostazioni → App → Termux → Avvio automatico
-Impostazioni → App → Termux → Batteria → Nessuna restrizione
+Settings → Apps → Termux → Autostart
+Settings → Apps → Termux → Battery → No restrictions
 ```
 
-Lo script usa `termux-wake-lock`, ma nessuna impostazione software può
-garantire che Android non chiuda Termux. Per servizi importanti è preferibile un
-Raspberry Pi, un mini-PC o un VPS.
+The script uses `termux-wake-lock`, but no software setting can guarantee that
+Android will never terminate Termux. For important services, use a Raspberry
+Pi, mini-PC, or VPS instead.
 
-## Diagnosi rapida
+## Quick diagnosis
 
 ```bash
 pgrep -laf 'http.server|cloudflared|sshd|sysinfo'
@@ -216,37 +217,35 @@ curl -I http://127.0.0.1:8080/
 tail -n 80 ~/cloudflared-termux.log
 ```
 
-Gli errori più utili da riconoscere:
+The most useful symptoms to recognize:
 
-| Sintomo | Significato probabile |
+| Symptom | Likely meaning |
 | --- | --- |
-| `HTTP 530`, `error code: 1033` | nessun processo `cloudflared` è connesso a Cloudflare |
-| `HTTP 502` | il tunnel è connesso, ma il servizio locale sulla porta 8080 non risponde |
-| `connection refused` su SSH | Termux o `sshd` non sono attivi, oppure il telefono è offline |
+| `HTTP 530`, `error code: 1033` | no `cloudflared` process is connected to Cloudflare |
+| `HTTP 502` | the tunnel is connected, but the local service on port 8080 is not responding |
+| `connection refused` on SSH | Termux or `sshd` is stopped, or the phone is offline |
 
-## Sicurezza e privacy
+## Security and privacy
 
-- tutto ciò che si mette in `~/www` diventa pubblico;
-- non pubblicare token, certificati, chiavi SSH o file di log;
-- rivedere `info.json` prima di esporre dati sul dispositivo;
-- mantenere Termux e i pacchetti aggiornati;
-- usare autenticazione davanti alle pagine private;
-- disattivare o proteggere eventuali endpoint come la fotocamera.
+- everything placed in `~/www` becomes public;
+- never publish tokens, certificates, SSH keys, or log files;
+- review `info.json` before exposing device data;
+- keep Termux and its packages up to date;
+- put authentication in front of private pages;
+- disable or protect optional endpoints such as the camera.
 
-## Perché farlo?
+## Why do this?
 
-Per imparare, sperimentare e rendere visibile l'intero percorso di una
-pubblicazione web: file statici, processo locale, tunnel, DNS, HTTPS,
-autostart e limiti di Android. È un server tascabile che trasforma un vecchio
-telefono in un piccolo laboratorio sempre a portata di mano.
+To learn and make the complete web publishing path visible: static files, a
+local process, a tunnel, DNS, HTTPS, autostart, and Android's limitations. It
+turns an old phone into a small laboratory that fits in your pocket.
 
-Per un sito statico che deve restare online senza dipendere dal telefono, la
-scelta più adatta è invece [Cloudflare Pages](https://pages.cloudflare.com/),
-GitHub Pages o un server dedicato.
+For a static site that must stay online without depending on the phone, use
+[Cloudflare Pages](https://pages.cloudflare.com/), GitHub Pages, or a dedicated
+server instead.
 
-## Licenza e riuso
+## License and reuse
 
-I file sono pensati come materiale didattico e possono essere adattati al
-proprio dispositivo, dominio e provider. Prima di copiare la configurazione,
-sostituire tutti i nomi, gli indirizzi e i percorsi specifici dell'installazione
-originale.
+The files are intended as educational material and can be adapted to your own
+device, domain, and provider. Before copying the configuration, replace all
+names, addresses, and paths that are specific to the original installation.
